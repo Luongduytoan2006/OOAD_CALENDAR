@@ -1,8 +1,7 @@
-import React, { useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
-import { ReminderMethod } from '../models/Reminder';
+import React, { useState } from 'react';
+import { X, Calendar as CalendarIcon, Clock, MapPin, AlignLeft } from 'lucide-react';
 import { AddAppointmentRequest } from '../models/types';
-import { buildDateTime } from '../utils/dateUtils';
+import { ReminderMethod } from '../models/Reminder';
 
 interface AddAppointmentFormModalProps {
   defaultDate: Date;
@@ -10,176 +9,166 @@ interface AddAppointmentFormModalProps {
   onSubmit: (request: AddAppointmentRequest) => Promise<void>;
 }
 
-function toDateValue(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-function toTimeValue(date: Date): string {
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  return `${hours}:${minutes}`;
-}
-
 export function AddAppointmentFormModal({
   defaultDate,
   onClose,
   onSubmit,
 }: AddAppointmentFormModalProps): React.JSX.Element {
-  const defaultEnd = useMemo(() => new Date(defaultDate.getTime() + 60 * 60 * 1000), [defaultDate]);
-
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
-  const [date, setDate] = useState(toDateValue(defaultDate));
-  const [startTime, setStartTime] = useState(toTimeValue(defaultDate));
-  const [endTime, setEndTime] = useState(toTimeValue(defaultEnd));
-  const [reminders, setReminders] = useState<ReminderMethod[]>([ReminderMethod.Popup]);
-  const [submitting, setSubmitting] = useState(false);
+  
+  const [startTime, setStartTime] = useState(() => {
+    const d = new Date(defaultDate);
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  });
 
-  const toggleReminder = (method: ReminderMethod): void => {
-    setReminders((current) =>
-      current.includes(method) ? current.filter((item) => item !== method) : [...current, method],
-    );
-  };
+  const [endTime, setEndTime] = useState(() => {
+    const d = new Date(defaultDate);
+    d.setHours(d.getHours() + 1);
+    return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+  });
 
-  const handleSubmit = async (event: React.FormEvent): Promise<void> => {
-    event.preventDefault();
-    if (submitting) return;
+  const [date, setDate] = useState(() => {
+    const d = new Date(defaultDate);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
 
-    setSubmitting(true);
+  const handleSubmit = (e: React.FormEvent): void => {
+    e.preventDefault();
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
 
-    try {
-      const request: AddAppointmentRequest = {
-        title,
-        location,
-        startTime: buildDateTime(date, startTime),
-        endTime: buildDateTime(date, endTime),
-        reminderMethods: reminders,
-      };
+    const start = new Date(date);
+    start.setHours(startH, startM, 0, 0);
 
-      await onSubmit(request);
-    } finally {
-      setSubmitting(false);
-    }
+    const end = new Date(date);
+    end.setHours(endH, endM, 0, 0);
+
+    void onSubmit({
+      title,
+      location,
+      startTime: start,
+      endTime: end,
+      reminderMethods: [ReminderMethod.Popup],
+    });
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative z-10 max-h-[80vh] w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-gray-100 px-8 py-6">
-          <h3 className="text-xl font-bold text-gray-800">Add Appointment</h3>
-          <button onClick={onClose} className="rounded-full p-2 text-gray-400 transition-colors hover:bg-gray-100">
-            <Plus size={20} className="rotate-45" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+      <div className="w-full max-w-xl overflow-hidden rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in duration-200">
+        {/* Header */}
+        <div className="bg-green-900 px-8 py-6 flex items-center justify-between text-white">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-white/10 rounded-xl">
+              <CalendarIcon size={24} />
+            </div>
+            <h3 className="text-xl font-black uppercase tracking-tight">Tạo cuộc hẹn mới</h3>
+          </div>
+          <button onClick={onClose} className="hover:bg-white/10 p-2 rounded-full transition-colors">
+            <X size={24} />
           </button>
         </div>
 
-        <div className="custom-scrollbar max-h-[60vh] overflow-y-auto p-8">
-          <form id="add-appointment-form" className="space-y-6" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="p-8 space-y-6">
+          {/* Title Input */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
+              <AlignLeft size={14} />
+              Tiêu đề cuộc hẹn
+            </div>
+            <input
+              type="text"
+              required
+              placeholder="Ví dụ: Họp Sprint, Ăn trưa..."
+              className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-900/20 focus:bg-white focus:ring-4 focus:ring-green-900/5 transition-all outline-none font-bold text-gray-800 placeholder:text-gray-300"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Date Input */}
             <div className="space-y-2">
-              <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Appointment Name</label>
+              <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
+                <CalendarIcon size={14} />
+                Ngày diễn ra
+              </div>
               <input
-                type="text"
+                type="date"
                 required
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Nhập tên cuộc hẹn"
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition-all focus:border-[#3525cd] focus:ring-2 focus:ring-indigo-100"
+                className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-900/20 focus:bg-white transition-all outline-none font-bold text-gray-800"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
               />
             </div>
 
+            {/* Location Input */}
             <div className="space-y-2">
-              <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Location</label>
+              <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
+                <MapPin size={14} />
+                Địa điểm
+              </div>
               <input
                 type="text"
+                placeholder="Phòng họp, Online..."
+                className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-900/20 focus:bg-white transition-all outline-none font-bold text-gray-800 placeholder:text-gray-300"
                 value={location}
-                onChange={(event) => setLocation(event.target.value)}
-                placeholder="VD: Phòng họp A2"
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition-all focus:border-[#3525cd] focus:ring-2 focus:ring-indigo-100"
+                onChange={(e) => setLocation(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            {/* Start Time */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
+                <Clock size={14} />
+                Bắt đầu
+              </div>
+              <input
+                type="time"
+                required
+                className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-900/20 focus:bg-white transition-all outline-none font-bold text-gray-800"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
               />
             </div>
 
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Date</label>
-                <input
-                  type="date"
-                  required
-                  value={date}
-                  onChange={(event) => setDate(event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition-all focus:border-[#3525cd] focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Start</label>
-                <input
-                  type="time"
-                  required
-                  value={startTime}
-                  onChange={(event) => setStartTime(event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition-all focus:border-[#3525cd] focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">End</label>
-                <input
-                  type="time"
-                  required
-                  value={endTime}
-                  onChange={(event) => setEndTime(event.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition-all focus:border-[#3525cd] focus:ring-2 focus:ring-indigo-100"
-                />
-              </div>
-            </div>
-
+            {/* End Time */}
             <div className="space-y-2">
-              <p className="px-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">Reminders</p>
-              <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
-                {Object.values(ReminderMethod).map((method) => {
-                  const checked = reminders.includes(method);
-                  return (
-                    <label
-                      key={method}
-                      className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition-colors ${
-                        checked ? 'border-indigo-200 bg-indigo-50 text-[#3525cd]' : 'border-gray-200 bg-white text-gray-600'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleReminder(method)}
-                        className="accent-[#3525cd]"
-                      />
-                      {method}
-                    </label>
-                  );
-                })}
+              <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
+                <Clock size={14} />
+                Kết thúc
               </div>
+              <input
+                type="time"
+                required
+                className="w-full px-5 py-4 rounded-2xl bg-gray-50 border border-transparent focus:border-green-900/20 focus:bg-white transition-all outline-none font-bold text-gray-800"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
             </div>
-          </form>
-        </div>
+          </div>
 
-        <div className="flex justify-end gap-4 border-t border-gray-100 bg-gray-50/50 px-8 py-6">
-          <button
-            onClick={onClose}
-            className="rounded-2xl px-8 py-3 text-sm font-bold text-gray-500 transition-colors hover:bg-gray-100"
-          >
-            Hủy bỏ
-          </button>
-          <button
-            type="submit"
-            form="add-appointment-form"
-            disabled={submitting}
-            className="rounded-2xl bg-[#3525cd] px-8 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-100 transition-all hover:bg-[#2a1da3] active:scale-95 disabled:opacity-50"
-          >
-            {submitting ? 'Đang xử lý...' : 'Thêm cuộc hẹn'}
-          </button>
-        </div>
+          <div className="pt-4 flex gap-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-4 px-6 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-500 font-bold transition-all"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="flex-[2] py-4 px-6 rounded-2xl bg-green-900 hover:bg-green-800 text-white font-black shadow-xl shadow-green-100 transition-all hover:-translate-y-0.5 active:translate-y-0"
+            >
+              TẠO LỊCH NGAY
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

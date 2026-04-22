@@ -36,12 +36,36 @@ export class AppointmentService {
 
     const validation = form.validateInput();
     if (!validation.isValid) {
+      return { status: 'INVALID', message: validation.error ?? 'Dữ liệu không hợp lệ.' };
+    }
+
+    const durationMs = request.endTime.getTime() - request.startTime.getTime();
+    const matchingGroupMeeting = calendar.findMatchingGroupMeeting(
+      request.title.trim(),
+      durationMs,
+      request.startTime,
+    );
+
+    // Luồng 2: Xin gia nhập GroupMeeting
+    if (matchingGroupMeeting && decision.joinGroupMeeting === undefined) {
       return {
-        status: 'INVALID',
-        message: validation.error ?? 'Dữ liệu không hợp lệ.',
+        status: 'GROUP_MEETING_SUGGESTION',
+        message: 'Hệ thống tìm thấy một cuộc họp nhóm tương tự. Bạn có muốn xin tham gia không?',
+        matchingGroupMeeting,
       };
     }
 
+    if (matchingGroupMeeting && decision.joinGroupMeeting === true) {
+      matchingGroupMeeting.requestToJoin(calendar.user);
+      await this.repository.saveCalendar(calendar);
+      return {
+        status: 'JOINED_GROUP_MEETING',
+        message: 'Đã gửi yêu cầu tham gia, chờ duyệt.',
+        matchingGroupMeeting,
+      };
+    }
+
+    // Luồng 3: Xử lý trùng lịch
     const appointment = new Appointment(
       this.repository.nextAppointmentId(),
       request.title.trim(),
@@ -50,11 +74,6 @@ export class AppointmentService {
       request.endTime,
       [],
     );
-
-    request.reminderMethods.forEach((method) => {
-      const remindAt = new Date(request.startTime.getTime() - 15 * 60 * 1000);
-      appointment.addReminder(new Reminder(this.repository.nextReminderId(), remindAt, method));
-    });
 
     const conflict = calendar.findConflictingAppointment(appointment);
     if (conflict && decision.replaceConflict !== true) {
@@ -65,46 +84,55 @@ export class AppointmentService {
       };
     }
 
-    const matchingGroupMeeting = calendar.findMatchingGroupMeeting(
-      appointment.title,
-      appointment.getDuration(),
-    );
-
-    if (matchingGroupMeeting && decision.joinGroupMeeting === undefined) {
-      return {
-        status: 'GROUP_MEETING_SUGGESTION',
-        message: 'Có cuộc họp nhóm cùng tên và thời lượng. Bạn có muốn tham gia thay vì tạo mới?',
-        matchingGroupMeeting,
-      };
-    }
-
-    if (matchingGroupMeeting && decision.joinGroupMeeting === true) {
-      calendar.joinGroupMeeting(matchingGroupMeeting);
-      await this.repository.saveCalendar(calendar);
-      return {
-        status: 'JOINED_GROUP_MEETING',
-        message: 'Bạn đã được thêm vào danh sách tham gia họp nhóm.',
-        matchingGroupMeeting,
-      };
-    }
-
     if (conflict && decision.replaceConflict === true) {
       calendar.replaceAppointment(conflict.appointmentId, appointment);
-      await this.repository.saveCalendar(calendar);
-      return {
-        status: 'REPLACED',
-        message: 'Đã thay thế cuộc hẹn cũ bằng cuộc hẹn mới.',
-        appointment,
-      };
+    } else {
+      calendar.addAppointment(appointment);
     }
 
-    calendar.addAppointment(appointment);
     await this.repository.saveCalendar(calendar);
-
     return {
-      status: 'SUCCESS',
-      message: 'Thêm cuộc hẹn thành công.',
+      status: decision.replaceConflict ? 'REPLACED' : 'SUCCESS',
+      message: decision.replaceConflict ? 'Đã thay thế cuộc hẹn cũ.' : 'Thêm cuộc hẹn thành công.',
       appointment,
     };
+  }
+
+  // Luồng 4: Chủ phòng duyệt người tham gia
+  async approveRequest(groupMeetingId: number, user: User): Promise<void> {
+    const calendar = await this.repository.getCalendar();
+    const meeting = calendar.appointments.find(
+      (a) => a.appointmentId === groupMeetingId && a instanceof GroupMeeting
+    ) as GroupMeeting;
+
+    if (meeting && meeting.ownerId === calendar.user.userId) {
+      meeting.approveParticipant(user);
+      await this.repository.saveCalendar(calendar);
+    }
+  }
+
+  async rejectRequest(groupMeetingId: number, user: User): Promise<void> {
+    const calendar = await this.repository.getCalendar();
+    const meeting = calendar.appointments.find(
+      (a) => a.appointmentId === groupMeetingId && a instanceof GroupMeeting
+    ) as GroupMeeting;
+
+    if (meeting && meeting.ownerId === calendar.user.userId) {
+      meeting.rejectParticipant(user);
+      await this.repository.saveCalendar(calendar);
+    }
+  }
+
+  // Quản lý User
+  getCurrentUser(): User {
+    return this.repository.getCurrentUser();
+  }
+
+  getAllUsers(): User[] {
+    return this.repository.getAllUsers();
+  }
+
+  setCurrentUser(userId: number): void {
+    this.repository.setCurrentUser(userId);
   }
 }

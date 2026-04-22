@@ -1,17 +1,9 @@
 /**
- * User entity: owner of a calendar and participant of group meetings.
+ * User entity: Simple identifier in the mock system.
  */
 export class User {
   constructor(
     public userId: number,
     public fullName: string,
   ) {}
-
-  chooseReplace(choice: boolean): boolean {
-    return choice;
-  }
-
-  confirmJoinGroupMeeting(choice: boolean): boolean {
-    return choice;
-  }
 }

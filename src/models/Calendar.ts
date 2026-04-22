@@ -20,9 +20,11 @@ export class Calendar {
     return this.appointments.find((appointment) => appointment.overlapsWith(candidate)) ?? null;
   }
 
-  findMatchingGroupMeeting(title: string, durationMs: number): GroupMeeting | null {
+  findMatchingGroupMeeting(title: string, durationMs: number, startTime: Date): GroupMeeting | null {
     const meeting = this.appointments.find(
-      (appointment) => appointment instanceof GroupMeeting && appointment.hasSameTitleAndDuration(title, durationMs),
+      (appointment) =>
+        appointment instanceof GroupMeeting &&
+        appointment.hasSameTitleAndDuration(title, durationMs, startTime),
     );
     return (meeting as GroupMeeting | undefined) ?? null;
   }
@@ -34,9 +36,5 @@ export class Calendar {
     } else {
       this.addAppointment(replacement);
     }
-  }
-
-  joinGroupMeeting(groupMeeting: GroupMeeting): void {
-    groupMeeting.addParticipant(this.user);
   }
 }

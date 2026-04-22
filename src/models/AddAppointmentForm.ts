@@ -15,11 +15,16 @@ export class AddAppointmentForm {
 
   validateInput(): { isValid: boolean; error?: string } {
     if (!this.inputTitle.trim()) {
-      return { isValid: false, error: 'Tên cuộc hẹn không được để trống.' };
+      return { isValid: false, error: 'Tiêu đề không được để trống.' };
     }
 
-    if (this.inputEndTime.getTime() <= this.inputStartTime.getTime()) {
-      return { isValid: false, error: 'Thời lượng cuộc hẹn phải lớn hơn 0.' };
+    if (this.inputEndTime <= this.inputStartTime) {
+      return { isValid: false, error: 'Thời gian kết thúc phải lớn hơn thời gian bắt đầu.' };
+    }
+
+    const now = new Date();
+    if (this.inputStartTime < now) {
+      return { isValid: false, error: 'Thời gian bắt đầu không được trong quá khứ.' };
     }
 
     return { isValid: true };

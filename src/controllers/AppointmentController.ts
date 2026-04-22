@@ -18,4 +18,24 @@ export class AppointmentController {
   ): Promise<AddAppointmentResult> {
     return this.appointmentService.addAppointment(request, decision);
   }
+
+  getCurrentUser(): User {
+    return this.appointmentService.getCurrentUser();
+  }
+
+  getAllUsers(): User[] {
+    return this.appointmentService.getAllUsers();
+  }
+
+  setCurrentUser(userId: number): void {
+    this.appointmentService.setCurrentUser(userId);
+  }
+
+  async approveRequest(groupMeetingId: number, user: User): Promise<void> {
+    await this.appointmentService.approveRequest(groupMeetingId, user);
+  }
+
+  async rejectRequest(groupMeetingId: number, user: User): Promise<void> {
+    await this.appointmentService.rejectRequest(groupMeetingId, user);
+  }
 }
