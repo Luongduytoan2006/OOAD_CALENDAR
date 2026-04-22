@@ -1,13 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 :root {
   --primary-green: #064e3b; /* green-900 */
   --secondary-green: #047857; /* green-700 */
   --accent-green: #10b981; /* green-500 */
   --calendar-bg: #ffffff;
+}
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-green-900: #064e3b;
+  --color-green-800: #065f46;
 }
 
 body {
