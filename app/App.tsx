@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar } from 'lucide-react';
-import { CalendarPage } from './CalendarPage';
+import { CalendarPage } from './pages/CalendarPage';
 
 export function App(): React.JSX.Element {
   return (
@@ -12,7 +12,7 @@ export function App(): React.JSX.Element {
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tight">OOAD Calendar Appointment</h1>
-            <p className="text-xs text-gray-500">MVC + N-Layers + Mock Data</p>
+            <p className="text-xs text-gray-500">MVC + N-Layers + PostgreSQL</p>
           </div>
         </div>
       </header>

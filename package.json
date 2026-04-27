@@ -4,24 +4,46 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0 --port 3636",
+    "dev": "concurrently \"vite --host 0.0.0.0 --port 3600\" \"tsx --watch src/server.ts\"",
+    "start": "tsx src/server.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "test": "tsx scripts/test_system.ts",
     "build": "tsc -b && vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "lucide-react": "^0.546.0",
+    "pg": "^8.20.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0",
     "@tailwindcss/vite": "^4.1.14",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/mssql": "^12.3.0",
+    "@types/node": "^22.14.0",
+    "@types/node-fetch": "^2.6.13",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "@types/sqlite3": "^5.1.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.2.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-fetch": "^3.3.2",
     "tailwindcss": "^4.1.14",
+    "tsx": "^4.21.0",
     "typescript": "^5.8.2",
     "vite": "^6.2.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "msnodesqlv8"
+    ]
   }
 }

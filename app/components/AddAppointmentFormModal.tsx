@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Calendar as CalendarIcon, Clock, MapPin, AlignLeft } from 'lucide-react';
-import { AddAppointmentRequest } from '../models/types';
-import { ReminderMethod } from '../models/Reminder';
+import { X, Calendar as CalendarIcon, Clock, MapPin, AlignLeft, BellRing } from 'lucide-react';
+import { AddAppointmentRequest } from '../../src/models/types';
+import { ReminderMethod } from '../../src/models/Reminder';
 
 interface AddAppointmentFormModalProps {
   defaultDate: Date;
@@ -16,6 +16,7 @@ export function AddAppointmentFormModal({
 }: AddAppointmentFormModalProps): React.JSX.Element {
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
+  const [selectedReminders, setSelectedReminders] = useState<ReminderMethod[]>([ReminderMethod.Popup]);
   
   const [startTime, setStartTime] = useState(() => {
     const d = new Date(defaultDate);
@@ -52,7 +53,7 @@ export function AddAppointmentFormModal({
       location,
       startTime: start,
       endTime: end,
-      reminderMethods: [ReminderMethod.Popup],
+      reminderMethods: selectedReminders,
     });
   };
 
@@ -153,6 +154,35 @@ export function AddAppointmentFormModal({
             </div>
           </div>
 
+          {/* Reminders */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
+              <BellRing size={14} />
+              Nhắc nhở
+            </div>
+            <div className="flex gap-4">
+              {[ReminderMethod.Popup, ReminderMethod.Email].map((method) => (
+                <label key={method} className="flex items-center gap-2 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5 rounded-lg border-2 border-gray-200 text-green-900 focus:ring-green-900/10 transition-all cursor-pointer"
+                    checked={selectedReminders.includes(method)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedReminders([...selectedReminders, method]);
+                      } else {
+                        setSelectedReminders(selectedReminders.filter((m) => m !== method));
+                      }
+                    }}
+                  />
+                  <span className="text-sm font-bold text-gray-600 group-hover:text-green-900 transition-colors">
+                    {method === ReminderMethod.Popup ? 'Thông báo Popup' : 'Gửi Email'}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <div className="pt-4 flex gap-4">
             <button
               type="button"
@@ -163,7 +193,7 @@ export function AddAppointmentFormModal({
             </button>
             <button
               type="submit"
-              className="flex-[2] py-4 px-6 rounded-2xl bg-green-900 hover:bg-green-800 text-white font-black shadow-xl shadow-green-100 transition-all hover:-translate-y-0.5 active:translate-y-0"
+              className="flex-[2] py-4 px-6 rounded-2xl bg-green-900 hover:bg-green-700 text-white font-black shadow-xl shadow-green-100 transition-all hover:-translate-y-0.5 active:translate-y-0"
             >
               TẠO LỊCH NGAY
             </button>

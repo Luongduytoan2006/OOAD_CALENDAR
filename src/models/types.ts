@@ -8,11 +8,14 @@ export interface AddAppointmentRequest {
   startTime: Date;
   endTime: Date;
   reminderMethods: ReminderMethod[];
+  isGroupMeeting?: boolean;
 }
 
 export interface AddAppointmentDecision {
   replaceConflict?: boolean;
   joinGroupMeeting?: boolean;
+  joinMeetingId?: number;
+  createAnyway?: boolean;
 }
 
 export type AddAppointmentStatus =
@@ -29,4 +32,5 @@ export interface AddAppointmentResult {
   appointment?: Appointment;
   conflictingAppointment?: Appointment;
   matchingGroupMeeting?: GroupMeeting;
+  matchingGroupMeetings?: GroupMeeting[];
 }

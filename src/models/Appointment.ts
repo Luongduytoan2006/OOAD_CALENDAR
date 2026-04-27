@@ -10,6 +10,8 @@ export class Appointment {
     public location: string,
     public startTime: Date,
     public endTime: Date,
+    public ownerId: number,
+    public isGroupMeeting: boolean = false,
     public reminders: Reminder[] = [],
   ) {}
 

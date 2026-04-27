@@ -1,5 +1,5 @@
 /**
- * User entity: Simple identifier in the mock system.
+ * User entity.
  */
 export class User {
   constructor(

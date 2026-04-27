@@ -1,31 +1,53 @@
-# OOAD Calendar - Add Calendar Appointment
+# OOAD Calendar Appointment System
 
-Ứng dụng demo use case **Add Calendar Appointment** theo mô hình **MVC + N-Layers** với TypeScript/React.
+Hệ thống quản lý lịch hẹn (Calendar) được thiết kế theo nguyên lý OOAD và kiến trúc N-Tier chuyên nghiệp.
 
-## Tính năng chính
+## 🌟 Công nghệ sử dụng
+- **Frontend**: React + TypeScript + Vite
+- **Backend**: Node.js + Express + TypeScript
+- **Database**: PostgreSQL 18
+- **Package Manager**: pnpm
 
-- Giao diện lịch tháng lấy cảm hứng từ PBL3.
-- Add Appointment qua popup form (`AddAppointmentForm`).
-- Validate đầu vào (tên rỗng, thời lượng âm/0).
-- Phát hiện trùng lịch và cho phép người dùng **Replace** cuộc hẹn cũ.
-- Gợi ý **Join Group Meeting** khi trùng tên + thời lượng với một cuộc họp nhóm có sẵn.
-- Mock data in-memory (chưa cần backend/database).
+## 🏗️ Kiến trúc hệ thống (N-Tier Architecture)
+Hệ thống được chia làm các tầng rõ rệt để đảm bảo tính dễ bảo trì và mở rộng:
+1.  **Controller Layer**: Nhận Request, Validate dữ liệu và điều phối các Service.
+2.  **Service Layer**: Chứa logic nghiệp vụ chính (Phân tách thành `UserService`, `AppointmentService`, `GroupMeetingService`).
+3.  **Repository Layer**: Thực hiện các truy vấn SQL trực tiếp vào Database.
+4.  **Model Layer**: Các Class thực thể (Entity) đại diện cho dữ liệu.
 
-## Cấu trúc thư mục
+## 🚀 Hướng dẫn cài đặt và chạy
 
-- `src/controllers`: điều phối request từ UI vào service.
-- `src/models`: entities/classes và kiểu dữ liệu use case.
-- `src/services`: business logic Add Calendar Appointment.
-- `src/repositories`: truy cập dữ liệu (mock repository).
-- `src/utils`: tiện ích xử lý ngày giờ và lịch tháng.
-- `src/app`: giao diện chính + modal + wiring dependency.
+### 1. Cấu hình môi trường
+- Tạo file `.env` từ `.env.example`.
+- Cập nhật thông tin `DB_PASSWORD` và các thông số kết nối PostgreSQL của bạn.
 
-## Chạy dự án
+### 2. Khởi tạo Database (Migration)
+Chạy lệnh sau để tự động tạo Database và nạp dữ liệu mẫu (Toàn, Sơn, Dũng):
+```bash
+npx tsx scripts/migrate.ts
+```
 
-1. Cài dependencies.
-2. Chạy dev server.
-3. Mở `http://localhost:3636`.
+### 3. Khởi động ứng dụng
+Chạy cả Frontend và Backend đồng thời:
+```bash
+pnpm dev
+```
+- Frontend sẽ chạy tại: `http://localhost:3636`
+- Backend API sẽ chạy tại: `http://localhost:3636/api` (Dùng chung port thông qua Vite Proxy hoặc port riêng 3637 tùy cấu hình).
 
-## UML
+### 4. Kiểm tra hệ thống (Testing)
+Chạy bộ test tự động bao quát các kịch bản quan trọng (Validation, Group Suggestion, Conflict, Replace):
+```bash
+npx tsx scripts/test_system.ts
+```
 
-Xem tại `docs/diagrams.md`.
+## 📅 Các tính năng nổi bật
+- **Gợi ý đa nhóm**: Khi tạo lịch trùng Tên + Thời lượng, hệ thống sẽ gợi ý tất cả các nhóm hiện có để người dùng chọn tham gia.
+- **Xử lý trùng lịch (Conflict)**: Phát hiện lịch cá nhân bị trùng và cung cấp tùy chọn "Replace" (Ghi đè) lịch cũ.
+- **Phê duyệt gia nhập**: Chủ phòng có quyền duyệt hoặc từ chối các yêu cầu gia nhập cuộc họp nhóm.
+- **Lời nhắc (Reminders)**: Hỗ trợ nhiều hình thức nhắc nhở (Popup, Email).
+
+## 📊 Báo cáo sơ bộ
+- **Tình trạng**: Đã hoàn thiện 100% logic nghiệp vụ.
+- **Database**: Đã tối ưu hóa cho PostgreSQL với các ràng buộc (Constraints) và khóa ngoại (Foreign Keys) chặt chẽ.
+- **Mã nguồn**: Sạch sẽ, không có code dư thừa, tuân thủ TypeScript Strict Mode.

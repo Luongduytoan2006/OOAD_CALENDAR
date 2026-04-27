@@ -16,7 +16,7 @@ export class GroupMeeting extends Appointment {
     public ownerId: number,
     public participants: User[] = [],
   ) {
-    super(appointmentId, title, location, startTime, endTime);
+    super(appointmentId, title, location, startTime, endTime, ownerId, true);
   }
 
   hasSameTitleAndDuration(title: string, durationMs: number, start: Date): boolean {

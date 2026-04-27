@@ -1,14 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Plus, UserCircle, BellRing } from 'lucide-react';
-import { Appointment } from '../models/Appointment';
-import { GroupMeeting } from '../models/GroupMeeting';
-import { AddAppointmentDecision, AddAppointmentRequest } from '../models/types';
-import { buildMonthGrid } from '../utils/appointmentUtils';
-import { formatMonthLabel, formatTime, isSameDay } from '../utils/dateUtils';
-import { AddAppointmentFormModal } from './AddAppointmentFormModal';
-import { PendingRequestsModal } from './PendingRequestsModal';
-import { appointmentController } from './container';
-import { User } from '../models/User';
+import { Appointment } from '../../src/models/Appointment';
+import { GroupMeeting } from '../../src/models/GroupMeeting';
+import { AddAppointmentDecision, AddAppointmentRequest } from '../../src/models/types';
+import { buildMonthGrid } from '../../src/utils/appointmentUtils';
+import { formatMonthLabel, formatTime, isSameDay } from '../../src/utils/dateUtils';
+import { AddAppointmentFormModal } from '../components/AddAppointmentFormModal';
+import { PendingRequestsModal } from '../components/PendingRequestsModal';
+import { appointmentController } from '../container';
+import { User } from '../../src/models/User';
+import { ViewAppointmentDetailsModal } from '../components/ViewAppointmentDetailsModal';
 
 export function CalendarPage(): React.JSX.Element {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -22,6 +23,7 @@ export function CalendarPage(): React.JSX.Element {
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date>(new Date());
+  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
   
   const [pendingMeeting, setPendingMeeting] = useState<GroupMeeting | null>(null);
 
@@ -30,6 +32,21 @@ export function CalendarPage(): React.JSX.Element {
   const loadAppointments = async (): Promise<void> => {
     const data = await appointmentController.listAppointments();
     setAppointments(data);
+  };
+
+  const handleShowDetails = async (app: Appointment) => {
+    if (app.isGroupMeeting) {
+      const details = await appointmentController.getAppointmentDetails(app.appointmentId);
+      // Chuyển đổi date string sang Date object cho details fetch
+      const mappedDetails = {
+        ...details,
+        startTime: new Date(details.startTime),
+        endTime: new Date(details.endTime)
+      };
+      setSelectedAppointment(mappedDetails);
+    } else {
+      setSelectedAppointment(app);
+    }
   };
 
   useEffect(() => {
@@ -177,7 +194,7 @@ export function CalendarPage(): React.JSX.Element {
         <button
           type="button"
           onClick={() => openAddModalAt(new Date())}
-          className="flex items-center gap-2 rounded-2xl bg-green-900 px-8 py-3 text-sm font-black text-white shadow-xl shadow-green-100 transition-all hover:bg-green-800 hover:-translate-y-0.5 active:translate-y-0"
+          className="flex items-center gap-2 rounded-2xl bg-green-900 px-8 py-3 text-sm font-black text-white shadow-xl shadow-green-100 transition-all hover:bg-green-700 hover:-translate-y-0.5 active:translate-y-0"
         >
           <Plus size={18} strokeWidth={3} />
           TẠO LỊCH MỚI
@@ -230,17 +247,18 @@ export function CalendarPage(): React.JSX.Element {
 
                 <div className="space-y-1.5">
                   {cell.appointments.map((appointment) => {
-                    const isGroup = appointment instanceof GroupMeeting;
-                    const isOwner = isGroup && (appointment as GroupMeeting).ownerId === currentUser.userId;
-                    const hasPending = isGroup && (appointment as GroupMeeting).pendingRequests.length > 0;
+                    const isGroup = appointment.isGroupMeeting;
+                    const isOwner = isGroup && appointment.ownerId === currentUser.userId;
+                    const hasPending = isGroup && (appointment as any).pendingRequests?.length > 0;
 
                     return (
                       <div
                         key={appointment.appointmentId}
-                        className={`group/item relative flex flex-col gap-1 rounded-xl p-2 text-[10px] font-bold shadow-sm transition-all border ${
+                        onClick={() => handleShowDetails(appointment)}
+                        className={`group/item relative flex flex-col gap-1 rounded-xl p-2 text-[10px] font-bold shadow-sm transition-all border cursor-pointer hover:scale-[1.02] active:scale-95 ${
                           isGroup 
-                            ? 'bg-green-50 border-green-100 text-green-900' 
-                            : 'bg-white border-gray-100 text-gray-700'
+                            ? 'bg-green-50 border-green-100 text-green-900 hover:bg-green-100' 
+                            : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
                         }`}
                       >
                         <div className="flex justify-between items-center">
@@ -284,6 +302,13 @@ export function CalendarPage(): React.JSX.Element {
           onApprove={handleApprove}
           onReject={handleReject}
           onClose={() => setPendingMeeting(null)}
+        />
+      )}
+
+      {selectedAppointment && (
+        <ViewAppointmentDetailsModal
+          appointment={selectedAppointment}
+          onClose={() => setSelectedAppointment(null)}
         />
       )}
     </div>

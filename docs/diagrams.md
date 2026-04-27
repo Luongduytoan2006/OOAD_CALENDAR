@@ -16,12 +16,12 @@ classDiagram
 
     class Calendar {
       +number calendarId
+      +number userId
       +Appointment[] appointments
       +addAppointment(appointment)
-      +findConflictingAppointment(candidate)
-      +findMatchingGroupMeeting(title, duration)
+      +findConflictingAppointment(candidate) Appointment
+      +findMatchingGroupMeeting(title, duration, start) GroupMeeting
       +replaceAppointment(oldId, replacement)
-      +joinGroupMeeting(groupMeeting)
     }
 
     class Appointment {
@@ -32,14 +32,18 @@ classDiagram
       +Date endTime
       +Reminder[] reminders
       +getDuration() number
-      +overlapsWith(other) bool
+      +overlapsWith(other) boolean
       +addReminder(reminder)
     }
 
     class GroupMeeting {
+      +number ownerId
       +User[] participants
-      +hasSameTitleAndDuration(title, duration) bool
-      +addParticipant(user)
+      +User[] pendingRequests
+      +hasSameTitleAndDuration(title, duration, start) boolean
+      +requestToJoin(user)
+      +approveParticipant(user)
+      +rejectParticipant(user)
     }
 
     class Reminder {
@@ -52,81 +56,91 @@ classDiagram
     class User {
       +number userId
       +string fullName
-      +chooseReplace(choice) bool
-      +confirmJoinGroupMeeting(choice) bool
+    }
+
+    class AppointmentService {
+      -ICalendarRepository repository
+      +getAppointments() Appointment[]
+      +addAppointment(request, decision) AddAppointmentResult
+      +approveRequest(meetingId, user)
+      +rejectRequest(meetingId, user)
+    }
+
+    class AppointmentController {
+      -AppointmentService service
+      +listAppointments() Appointment[]
+      +createAppointment(request, decision) AddAppointmentResult
     }
 
     GroupMeeting --|> Appointment
-    Calendar "1" --> "0..*" Appointment
-    Appointment "1" --> "0..*" Reminder
-    Calendar "1" --> "1" User
-    GroupMeeting "0..*" --> "0..*" User
-    AddAppointmentForm ..> Calendar : submit request
+    Calendar "1" *-- "0..*" Appointment
+    Appointment "1" *-- "0..*" Reminder
+    Calendar "1" o-- "1" User
+    GroupMeeting "0..*" o-- "0..*" User : participants
+    GroupMeeting "0..*" o-- "0..*" User : pendingRequests
+    AddAppointmentForm ..> AppointmentService : validation & creation
+    AppointmentController --> AppointmentService
+    AppointmentService --> Calendar
 ```
 
-## Sequence Diagram
+## Sequence Diagram: Add Calendar Appointment
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant UI as AddAppointmentForm (UI)
+    participant UI as AddAppointmentFormModal
+    participant Page as CalendarPage
     participant Controller as AppointmentController
     participant Service as AppointmentService
-    participant Calendar as Calendar
+    participant Model as Calendar / Appointment
 
-    User->>UI: Chọn ô lịch và nhập appointment
-    UI->>UI: validateInput()
-    alt Input invalid
-        UI-->>User: showInvalidInputError()
-    else Input valid
-        UI->>Controller: createAppointment(request)
-        Controller->>Service: addAppointment(request)
-        Service->>Calendar: findConflictingAppointment(candidate)
-
-        alt Có conflict
-            Service-->>UI: status = CONFLICT
-            UI-->>User: showConflictWarning() + askReplace()
-            alt User chọn replace
-                UI->>Controller: createAppointment(request, replace=true)
-                Controller->>Service: addAppointment(...)
-                Service->>Calendar: findMatchingGroupMeeting(title,duration)
-                alt Match group meeting
-                    Service-->>UI: status = GROUP_MEETING_SUGGESTION
-                    UI-->>User: askJoinGroupMeeting()
-                    alt User chọn join
-                        UI->>Controller: createAppointment(request, replace=true, join=true)
-                        Service->>Calendar: joinGroupMeeting(meeting)
-                        Service-->>UI: JOINED_GROUP_MEETING
-                    else User không join
-                        Service->>Calendar: replaceAppointment(old,new)
-                        Service-->>UI: REPLACED
-                    end
-                else Không match group
-                    Service->>Calendar: replaceAppointment(old,new)
-                    Service-->>UI: REPLACED
-                end
-            else User không replace
-                UI-->>User: Chọn thời gian khác
-            end
-        else Không conflict
-            Service->>Calendar: findMatchingGroupMeeting(title,duration)
-            alt Match group meeting
-                Service-->>UI: GROUP_MEETING_SUGGESTION
-                UI-->>User: askJoinGroupMeeting()
-                alt User join
-                    UI->>Controller: createAppointment(request, join=true)
-                    Service->>Calendar: joinGroupMeeting(meeting)
-                    Service-->>UI: JOINED_GROUP_MEETING
-                else User không join
-                    Service->>Calendar: addAppointment(appointment)
-                    Service-->>UI: SUCCESS
-                end
-            else Không match group
-                Service->>Calendar: addAppointment(appointment)
-                Service-->>UI: SUCCESS
+    User->>UI: Nhập thông tin (Title, Time, Reminders, ...)
+    User->>UI: Click "Tạo lịch ngay"
+    UI->>Page: onSubmit(request)
+    Page->>Controller: createAppointment(request)
+    Controller->>Service: addAppointment(request)
+    
+    Service->>Service: form.validateInput()
+    alt Dữ liệu không hợp lệ (Trống tên, duration <= 0, ...)
+        Service-->>Controller: status: 'INVALID'
+        Controller-->>Page: status: 'INVALID'
+        Page-->>User: Hiển thị Alert báo lỗi
+    else Dữ liệu hợp lệ
+        Service->>Service: findMatchingGroupMeeting(title, duration, start)
+        alt Tìm thấy Group Meeting trùng khớp
+            Service-->>Controller: status: 'GROUP_MEETING_SUGGESTION'
+            Controller-->>Page: status: 'GROUP_MEETING_SUGGESTION'
+            Page-->>User: window.confirm("Bạn có muốn xin tham gia họp nhóm?")
+            alt User chọn JOIN
+                Page->>Controller: createAppointment(request, joinGroupMeeting: true)
+                Controller->>Service: addAppointment(..., joinGroupMeeting: true)
+                Service->>Model: groupMeeting.requestToJoin(currentUser)
+                Service-->>Page: status: 'JOINED_GROUP_MEETING'
+                Page-->>User: Alert("Đã gửi yêu cầu tham gia")
+            else User chọn KHÔNG JOIN
+                 Note over Service: Tiếp tục xử lý như lịch cá nhân
             end
         end
 
-        UI-->>User: showSuccess()
+        Note over Service: Kiểm tra trùng lịch (Conflict)
+        Service->>Model: calendar.findConflictingAppointment(candidate)
+        alt Có lịch trùng
+            Service-->>Controller: status: 'CONFLICT'
+            Controller-->>Page: status: 'CONFLICT'
+            Page-->>User: window.confirm("Trùng lịch. Bạn có muốn thay thế?")
+            alt User chọn REPLACE
+                Page->>Controller: createAppointment(request, replaceConflict: true)
+                Service->>Model: calendar.replaceAppointment(old, new)
+                Service-->>Page: status: 'REPLACED'
+                Page-->>User: Alert("Đã thay thế cuộc hẹn")
+            else User chọn HỦY
+                Page-->>User: Đóng thông báo, giữ nguyên lịch cũ
+            end
+        else Không có lịch trùng
+            Service->>Model: calendar.addAppointment(newAppointment)
+            Service-->>Controller: status: 'SUCCESS'
+            Controller-->>Page: status: 'SUCCESS'
+            Page-->>User: Alert("Thêm cuộc hẹn thành công")
+        end
     end
-```
+    Page->>Page: reloadAppointments()

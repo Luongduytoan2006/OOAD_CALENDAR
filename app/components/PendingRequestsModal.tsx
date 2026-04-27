@@ -1,5 +1,5 @@
 import React from 'react';
-import { User } from '../models/User';
+import { User } from '../../src/models/User';
 import { X, Check, UserPlus } from 'lucide-react';
 
 interface PendingRequestsModalProps {
