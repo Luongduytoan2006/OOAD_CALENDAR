@@ -43,7 +43,9 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "msnodesqlv8"
+      "esbuild",
+      "msnodesqlv8",
+      "sqlite3"
     ]
   }
 }

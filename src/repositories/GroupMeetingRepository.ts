@@ -3,38 +3,67 @@ import { User } from '../models/User';
 import { DbConnection } from './DbConnection';
 
 export class GroupMeetingRepository {
-  async findAllMatching(title: string, durationMs: number): Promise<GroupMeeting[]> {
-    const pool = await DbConnection.getConnection();
-    const result = await pool.query(`
-      SELECT a.*, u.full_name as owner_name
+  async findAllMatching(
+    currentUserId: number,
+    title: string,
+    startTime: Date,
+    endTime: Date,
+  ): Promise<GroupMeeting[]> {
+    const db = await DbConnection.getConnection();
+
+    const rows = await db.all(
+      `
+      SELECT a.*
       FROM appointments a
-      JOIN users u ON a.owner_id = u.user_id
-      WHERE a.is_group_meeting = TRUE 
-      AND a.title = $1
-    `, [title]);
+      WHERE a.is_group_meeting = 1
+        AND LOWER(TRIM(a.title)) = LOWER(TRIM(?))
+        AND a.start_time = ?
+        AND a.end_time = ?
+        AND a.owner_id <> ?
+        AND a.appointment_id NOT IN (
+          SELECT appointment_id
+          FROM participants
+          WHERE user_id = ?
+        )
+      ORDER BY a.start_time ASC
+      `,
+      [
+        title,
+        startTime.toISOString(),
+        endTime.toISOString(),
+        currentUserId,
+        currentUserId,
+      ],
+    );
 
-    const matches = result.rows.filter(row => {
-      const duration = new Date(row.end_time).getTime() - new Date(row.start_time).getTime();
-      return duration === durationMs;
-    });
-
-    return matches.map(row => new GroupMeeting(
-      row.appointment_id,
-      row.title,
-      row.location,
-      new Date(row.start_time),
-      new Date(row.end_time),
-      row.owner_id,
-      []
-    ));
+    return rows.map(
+      (row) =>
+        new GroupMeeting(
+          row.appointment_id,
+          row.title,
+          row.location,
+          new Date(row.start_time),
+          new Date(row.end_time),
+          row.owner_id,
+          [],
+        ),
+    );
   }
 
   async getById(meetingId: number): Promise<GroupMeeting | null> {
-    const pool = await DbConnection.getConnection();
-    const result = await pool.query('SELECT * FROM appointments WHERE appointment_id = $1 AND is_group_meeting = TRUE', [meetingId]);
+    const db = await DbConnection.getConnection();
 
-    if (result.rows.length === 0) return null;
-    const row = result.rows[0];
+    const row = await db.get(
+      `
+      SELECT *
+      FROM appointments
+      WHERE appointment_id = ?
+        AND is_group_meeting = 1
+      `,
+      [meetingId],
+    );
+
+    if (!row) return null;
 
     const meeting = new GroupMeeting(
       row.appointment_id,
@@ -42,47 +71,126 @@ export class GroupMeetingRepository {
       row.location,
       new Date(row.start_time),
       new Date(row.end_time),
-      row.owner_id
+      row.owner_id,
+      [],
     );
 
-    // Load participants
-    const partResult = await pool.query('SELECT u.* FROM participants p JOIN users u ON p.user_id = u.user_id WHERE p.appointment_id = $1', [meetingId]);
-    meeting.participants = partResult.rows.map(r => new User(r.user_id, r.full_name));
+    const participantRows = await db.all(
+      `
+      SELECT u.*
+      FROM participants p
+      JOIN users u ON p.user_id = u.user_id
+      WHERE p.appointment_id = ?
+      `,
+      [meetingId],
+    );
 
-    // Load pending requests
-    const pendResult = await pool.query('SELECT u.* FROM pending_requests p JOIN users u ON p.user_id = u.user_id WHERE p.appointment_id = $1', [meetingId]);
-    meeting.pendingRequests = pendResult.rows.map(r => new User(r.user_id, r.full_name));
+    meeting.participants = participantRows.map(
+      (r) => new User(r.user_id, r.full_name),
+    );
+
+    const pendingRows = await db.all(
+      `
+      SELECT u.*
+      FROM pending_requests p
+      JOIN users u ON p.user_id = u.user_id
+      WHERE p.appointment_id = ?
+      `,
+      [meetingId],
+    );
+
+    meeting.pendingRequests = pendingRows.map(
+      (r) => new User(r.user_id, r.full_name),
+    );
 
     return meeting;
   }
 
   async saveGroupMetadata(meetingId: number): Promise<void> {
-    const pool = await DbConnection.getConnection();
-    await pool.query('INSERT INTO group_meetings (appointment_id) VALUES ($1) ON CONFLICT DO NOTHING', [meetingId]);
+    const db = await DbConnection.getConnection();
+
+    await db.run(
+      `
+      INSERT OR IGNORE INTO group_meetings (appointment_id)
+      VALUES (?)
+      `,
+      [meetingId],
+    );
+  }
+
+  async addParticipant(userId: number, meetingId: number): Promise<void> {
+    const db = await DbConnection.getConnection();
+
+    await db.run(
+      `
+      INSERT OR IGNORE INTO participants (appointment_id, user_id)
+      VALUES (?, ?)
+      `,
+      [meetingId, userId],
+    );
+
+    await db.run(
+      `
+      DELETE FROM pending_requests
+      WHERE appointment_id = ?
+        AND user_id = ?
+      `,
+      [meetingId, userId],
+    );
   }
 
   async addRequestToJoin(userId: number, meetingId: number): Promise<void> {
-    const pool = await DbConnection.getConnection();
-    await pool.query('INSERT INTO pending_requests (user_id, appointment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, meetingId]);
+    const db = await DbConnection.getConnection();
+
+    await db.run(
+      `
+      INSERT OR IGNORE INTO pending_requests (appointment_id, user_id)
+      VALUES (?, ?)
+      `,
+      [meetingId, userId],
+    );
   }
 
   async approveParticipant(userId: number, meetingId: number): Promise<void> {
-    const client = await (await DbConnection.getConnection()).connect();
+    const db = await DbConnection.getConnection();
+
     try {
-      await client.query('BEGIN');
-      await client.query('DELETE FROM pending_requests WHERE user_id = $1 AND appointment_id = $2', [userId, meetingId]);
-      await client.query('INSERT INTO participants (user_id, appointment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, meetingId]);
-      await client.query('COMMIT');
+      await db.run('BEGIN');
+
+      await db.run(
+        `
+        DELETE FROM pending_requests
+        WHERE appointment_id = ?
+          AND user_id = ?
+        `,
+        [meetingId, userId],
+      );
+
+      await db.run(
+        `
+        INSERT OR IGNORE INTO participants (appointment_id, user_id)
+        VALUES (?, ?)
+        `,
+        [meetingId, userId],
+      );
+
+      await db.run('COMMIT');
     } catch (err) {
-      await client.query('ROLLBACK');
+      await db.run('ROLLBACK');
       throw err;
-    } finally {
-      client.release();
     }
   }
 
   async rejectParticipant(userId: number, meetingId: number): Promise<void> {
-    const pool = await DbConnection.getConnection();
-    await pool.query('DELETE FROM pending_requests WHERE user_id = $1 AND appointment_id = $2', [userId, meetingId]);
+    const db = await DbConnection.getConnection();
+
+    await db.run(
+      `
+      DELETE FROM pending_requests
+      WHERE appointment_id = ?
+        AND user_id = ?
+      `,
+      [meetingId, userId],
+    );
   }
 }

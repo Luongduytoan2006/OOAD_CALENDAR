@@ -13,18 +13,19 @@ import { ViewAppointmentDetailsModal } from '../components/ViewAppointmentDetail
 
 export function CalendarPage(): React.JSX.Element {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [currentUser, setCurrentUser] = useState<User>(() => appointmentController.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<User>(() =>
+    appointmentController.getCurrentUser(),
+  );
   const [allUsers] = useState<User[]>(() => appointmentController.getAllUsers());
-  
+
   const [displayMonth, setDisplayMonth] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Date>(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  
   const [pendingMeeting, setPendingMeeting] = useState<GroupMeeting | null>(null);
 
   const today = new Date();
@@ -34,26 +35,31 @@ export function CalendarPage(): React.JSX.Element {
     setAppointments(data);
   };
 
-  const handleShowDetails = async (app: Appointment) => {
+  const handleShowDetails = async (app: Appointment): Promise<void> => {
     if (app.isGroupMeeting) {
       const details = await appointmentController.getAppointmentDetails(app.appointmentId);
-      // Chuyển đổi date string sang Date object cho details fetch
+
       const mappedDetails = {
         ...details,
         startTime: new Date(details.startTime),
-        endTime: new Date(details.endTime)
+        endTime: new Date(details.endTime),
       };
+
       setSelectedAppointment(mappedDetails);
-    } else {
-      setSelectedAppointment(app);
+      return;
     }
+
+    setSelectedAppointment(app);
   };
 
   useEffect(() => {
     void loadAppointments();
   }, [currentUser]);
 
-  const monthGrid = useMemo(() => buildMonthGrid(displayMonth, appointments), [appointments, displayMonth]);
+  const monthGrid = useMemo(
+    () => buildMonthGrid(displayMonth, appointments),
+    [appointments, displayMonth],
+  );
 
   const handleSwitchUser = (userId: number): void => {
     appointmentController.setCurrentUser(userId);
@@ -63,11 +69,17 @@ export function CalendarPage(): React.JSX.Element {
   const openAddModalAt = (date: Date): void => {
     const slot = new Date(date);
     const now = new Date();
-    if (slot.getDate() === now.getDate() && slot.getMonth() === now.getMonth()) {
+
+    if (
+      slot.getDate() === now.getDate() &&
+      slot.getMonth() === now.getMonth() &&
+      slot.getFullYear() === now.getFullYear()
+    ) {
       slot.setHours(now.getHours() + 1, 0, 0, 0);
     } else {
       slot.setHours(9, 0, 0, 0);
     }
+
     setSelectedSlot(slot);
     setShowAddModal(true);
   };
@@ -85,21 +97,53 @@ export function CalendarPage(): React.JSX.Element {
 
     if (result.status === 'CONFLICT') {
       const replace = window.confirm(
-        `${result.message}\n\nBạn có muốn thay thế cuộc hẹn cũ (${result.conflictingAppointment?.title}) không?`,
+        `${result.message}\n\nCuộc hẹn đang bị trùng: ${
+          result.conflictingAppointment?.title ?? ''
+        }\n\nOK = thay thế cuộc hẹn cũ\nCancel = quay lại chọn thời gian khác`,
       );
 
-      if (!replace) return;
-      await processAppointmentFlow(request, { ...decision, replaceConflict: true });
+      if (!replace) {
+        return;
+      }
+
+      await processAppointmentFlow(request, {
+        ...decision,
+        replaceConflict: true,
+      });
+
       return;
     }
 
     if (result.status === 'GROUP_MEETING_SUGGESTION') {
-      const join = window.confirm(result.message);
-      if (join) {
-        await processAppointmentFlow(request, { ...decision, joinGroupMeeting: true });
-      } else {
-        await processAppointmentFlow(request, { ...decision, joinGroupMeeting: false });
+      const meetings = result.matchingGroupMeetings ?? [];
+      const firstMeeting = meetings[0];
+
+      if (!firstMeeting) {
+        await processAppointmentFlow(request, {
+          ...decision,
+          createAnyway: true,
+        });
+        return;
       }
+
+      const join = window.confirm(
+        `${result.message}\n\nGroup meeting: ${firstMeeting.title}\nThời gian: ${formatTime(
+          new Date(firstMeeting.startTime),
+        )}\n\nOK = tham gia group meeting\nCancel = vẫn tạo appointment riêng`,
+      );
+
+      if (join) {
+        await processAppointmentFlow(request, {
+          ...decision,
+          joinMeetingId: firstMeeting.appointmentId,
+        });
+      } else {
+        await processAppointmentFlow(request, {
+          ...decision,
+          createAnyway: true,
+        });
+      }
+
       return;
     }
 
@@ -110,51 +154,62 @@ export function CalendarPage(): React.JSX.Element {
 
   const handleApprove = async (userId: number): Promise<void> => {
     if (!pendingMeeting) return;
-    const user = pendingMeeting.pendingRequests.find(u => u.userId === userId);
+
+    const user = pendingMeeting.pendingRequests.find((u) => u.userId === userId);
+
     if (user) {
       await appointmentController.approveRequest(pendingMeeting.appointmentId, user);
       await loadAppointments();
-      setPendingMeeting({ ...pendingMeeting } as GroupMeeting); // Refresh local state
+      setPendingMeeting(null);
     }
   };
 
   const handleReject = async (userId: number): Promise<void> => {
     if (!pendingMeeting) return;
-    const user = pendingMeeting.pendingRequests.find(u => u.userId === userId);
+
+    const user = pendingMeeting.pendingRequests.find((u) => u.userId === userId);
+
     if (user) {
       await appointmentController.rejectRequest(pendingMeeting.appointmentId, user);
       await loadAppointments();
-      setPendingMeeting({ ...pendingMeeting } as GroupMeeting);
+      setPendingMeeting(null);
     }
   };
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col space-y-6 p-8 min-h-screen">
-      {/* Header & User Switcher */}
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
         <div className="flex items-center gap-4">
           <div className="bg-green-900 p-3 rounded-2xl text-white shadow-lg">
             <BellRing size={28} />
           </div>
+
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-green-900 uppercase">Calendar</h1>
-            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">{formatMonthLabel(displayMonth)}</p>
+            <h1 className="text-3xl font-black tracking-tight text-green-900 uppercase">
+              Calendar
+            </h1>
+            <p className="text-sm font-medium text-gray-400 uppercase tracking-widest">
+              {formatMonthLabel(displayMonth)}
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm">
           <div className="flex items-center gap-2 px-3 border-r border-gray-100">
             <UserCircle size={20} className="text-green-800" />
-            <span className="text-sm font-bold text-gray-700">{currentUser.fullName}</span>
+            <span className="text-sm font-bold text-gray-700">
+              {currentUser.fullName}
+            </span>
           </div>
+
           <div className="flex gap-1">
-            {allUsers.map(user => (
+            {allUsers.map((user) => (
               <button
                 key={user.userId}
                 onClick={() => handleSwitchUser(user.userId)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                  currentUser.userId === user.userId 
-                    ? 'bg-green-900 text-white shadow-md' 
+                  currentUser.userId === user.userId
+                    ? 'bg-green-900 text-white shadow-md'
                     : 'text-gray-400 hover:bg-gray-50'
                 }`}
               >
@@ -165,26 +220,37 @@ export function CalendarPage(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1))}
+            onClick={() =>
+              setDisplayMonth(
+                new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1, 1),
+              )
+            }
             className="p-2 rounded-full border border-gray-100 bg-white text-green-900 hover:bg-green-50 transition-colors shadow-sm"
           >
             <ChevronRight size={20} className="rotate-180" />
           </button>
+
           <button
             type="button"
-            onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1))}
+            onClick={() =>
+              setDisplayMonth(
+                new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 1),
+              )
+            }
             className="p-2 rounded-full border border-gray-100 bg-white text-green-900 hover:bg-green-50 transition-colors shadow-sm"
           >
             <ChevronRight size={20} />
           </button>
+
           <button
             type="button"
-            onClick={() => setDisplayMonth(new Date(today.getFullYear(), today.getMonth(), 1))}
+            onClick={() =>
+              setDisplayMonth(new Date(today.getFullYear(), today.getMonth(), 1))
+            }
             className="px-6 py-2 rounded-xl border border-gray-100 bg-white text-sm font-bold text-green-900 hover:bg-green-50 transition-colors shadow-sm"
           >
             Hôm nay
@@ -201,14 +267,18 @@ export function CalendarPage(): React.JSX.Element {
         </button>
       </div>
 
-      {/* Calendar Grid */}
       <div className="flex-1 overflow-hidden rounded-[32px] border border-gray-100 bg-white shadow-2xl">
         <div className="grid grid-cols-7 border-b border-gray-50 bg-green-900/5">
-          {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CN'].map((day) => (
-            <div key={day} className="py-4 text-center text-[10px] font-black tracking-widest text-green-900/40">
-              {day}
-            </div>
-          ))}
+          {['THỨ 2', 'THỨ 3', 'THỨ 4', 'THỨ 5', 'THỨ 6', 'THỨ 7', 'CN'].map(
+            (day) => (
+              <div
+                key={day}
+                className="py-4 text-center text-[10px] font-black tracking-widest text-green-900/40"
+              >
+                {day}
+              </div>
+            ),
+          )}
         </div>
 
         <div className="grid grid-cols-7">
@@ -234,9 +304,10 @@ export function CalendarPage(): React.JSX.Element {
                   >
                     {cell.date.getDate()}
                   </span>
-                  
+
                   {cell.isCurrentMonth && (
-                    <button 
+                    <button
+                      type="button"
                       onClick={() => openAddModalAt(cell.date)}
                       className="opacity-0 group-hover:opacity-100 p-1 text-green-900 hover:bg-green-100 rounded-lg transition-all"
                     >
@@ -249,22 +320,25 @@ export function CalendarPage(): React.JSX.Element {
                   {cell.appointments.map((appointment) => {
                     const isGroup = appointment.isGroupMeeting;
                     const isOwner = isGroup && appointment.ownerId === currentUser.userId;
-                    const hasPending = isGroup && (appointment as any).pendingRequests?.length > 0;
+                    const hasPending =
+                      isGroup && (appointment as any).pendingRequests?.length > 0;
 
                     return (
                       <div
                         key={appointment.appointmentId}
                         onClick={() => handleShowDetails(appointment)}
                         className={`group/item relative flex flex-col gap-1 rounded-xl p-2 text-[10px] font-bold shadow-sm transition-all border cursor-pointer hover:scale-[1.02] active:scale-95 ${
-                          isGroup 
-                            ? 'bg-green-50 border-green-100 text-green-900 hover:bg-green-100' 
+                          isGroup
+                            ? 'bg-green-50 border-green-100 text-green-900 hover:bg-green-100'
                             : 'bg-white border-gray-100 text-gray-700 hover:border-indigo-200'
                         }`}
                       >
                         <div className="flex justify-between items-center">
                           <span className="truncate">{appointment.title}</span>
+
                           {isOwner && hasPending && (
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setPendingMeeting(appointment as GroupMeeting);
@@ -275,7 +349,10 @@ export function CalendarPage(): React.JSX.Element {
                             </button>
                           )}
                         </div>
-                        <span className="text-[9px] opacity-60">{formatTime(appointment.startTime)}</span>
+
+                        <span className="text-[9px] opacity-60">
+                          {formatTime(appointment.startTime)}
+                        </span>
                       </div>
                     );
                   })}

@@ -13,79 +13,133 @@ export class AppointmentController {
 
   async listAppointments(req: Request, res: Response, next: any) {
     try {
-      const userId = parseInt(req.query.userId as string || '0');
+      const userId = parseInt((req.query.userId as string) || '0');
       const appointments = await this.appointmentService.getUserAppointments(userId);
       res.json(appointments);
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
   async getAppointmentDetails(req: Request, res: Response, next: any) {
     try {
       const id = parseInt(req.params.id as string);
       const details = await this.appointmentService.getDetails(id);
-      if (!details) return res.status(404).send('Not found');
-      res.json(details);
-    } catch (err) { next(err); }
+
+      if (!details) {
+        return res.status(404).send('Not found');
+      }
+
+      if (details.isGroupMeeting) {
+        const groupDetails = await this.groupMeetingService.getMeetingDetails(id);
+        return res.json(groupDetails ?? details);
+      }
+
+      return res.json(details);
+    } catch (err) {
+      next(err);
+    }
   }
 
   async createAppointment(req: Request, res: Response, next: any) {
     try {
-      const { userId, request, decision }: { userId: number, request: any, decision: AddAppointmentDecision } = req.body;
-      
+      const {
+        userId,
+        request,
+        decision,
+      }: {
+        userId: number;
+        request: any;
+        decision: AddAppointmentDecision;
+      } = req.body;
+
       request.startTime = new Date(request.startTime);
       request.endTime = new Date(request.endTime);
 
-      // 1. Validation
-      if (!request.title.trim()) {
-        return res.json({ status: 'INVALID', message: 'Tiêu đề không được để trống.' });
+      if (!request.title || !request.title.trim()) {
+        return res.json({
+          status: 'INVALID',
+          message: 'Tên cuộc hẹn không được để trống.',
+        });
       }
+
       if (request.endTime <= request.startTime) {
-        return res.json({ status: 'INVALID', message: 'Thời gian kết thúc phải lớn hơn thời gian bắt đầu.' });
+        return res.json({
+          status: 'INVALID',
+          message: 'Thời gian kết thúc phải lớn hơn thời gian bắt đầu.',
+        });
       }
 
       const durationMs = request.endTime.getTime() - request.startTime.getTime();
 
-      // 2. Logic: Group Meeting Suggestions
+      const conflict = await this.appointmentService.checkPersonalConflict(
+        userId,
+        request.startTime,
+        request.endTime,
+      );
+
+      if (conflict && !decision?.replaceConflict) {
+        return res.json({
+          status: 'CONFLICT',
+          message:
+            'Bạn đã có appointment trong khung giờ này. Hãy chọn thời gian khác hoặc thay thế appointment cũ.',
+          conflictingAppointment: conflict,
+        });
+      }
+
+      if (conflict && decision?.replaceConflict) {
+        await this.appointmentService.replaceAppointment(
+          conflict.appointmentId,
+          userId,
+          request,
+        );
+
+        return res.json({
+          status: 'REPLACED',
+          message: 'Appointment cũ đã được thay thế.',
+        });
+      }
+
       if (!decision?.joinMeetingId && !decision?.createAnyway) {
-        const matches = await this.groupMeetingService.findSuggestions(request.title, durationMs);
+        const matches = await this.groupMeetingService.findSuggestions(
+        userId,
+        request.title,
+        request.startTime,
+        request.endTime,
+      );
+
         if (matches.length > 0) {
           return res.json({
             status: 'GROUP_MEETING_SUGGESTION',
-            message: `Tìm thấy ${matches.length} cuộc họp nhóm tương tự. Bạn có muốn tham gia không?`,
-            matchingGroupMeetings: matches
+            message:
+              'Có group meeting cùng tên và cùng thời lượng. Bạn có muốn tham gia group meeting này thay vì tạo appointment riêng không?',
+            matchingGroupMeetings: matches,
           });
         }
       }
 
-      // 3. Logic: Join Group Meeting
       if (decision?.joinMeetingId) {
-        await this.groupMeetingService.requestJoin(userId, decision.joinMeetingId);
-        return res.json({ status: 'JOINED_GROUP_MEETING', message: 'Đã gửi yêu cầu tham gia.' });
-      }
+        await this.groupMeetingService.joinMeeting(userId, decision.joinMeetingId);
 
-      // 4. Logic: Personal Conflicts
-      const conflict = await this.appointmentService.checkPersonalConflict(userId, request.startTime, request.endTime);
-      if (conflict && !decision?.replaceConflict) {
         return res.json({
-          status: 'CONFLICT',
-          message: 'Bạn đã có lịch khác trong khung giờ này.',
-          conflictingAppointment: conflict
+          status: 'JOINED_GROUP_MEETING',
+          message: 'Đã tham gia group meeting.',
         });
       }
 
-      // 5. Logic: Finalize Save/Replace
-      if (conflict && decision?.replaceConflict) {
-        await this.appointmentService.replaceAppointment(conflict.appointmentId, userId, request);
-        return res.json({ status: 'REPLACED', message: 'Đã thay thế cuộc hẹn cũ.' });
+      if (request.isGroupMeeting) {
+        await this.appointmentService.createGroup(userId, request);
       } else {
-        if (request.isGroupMeeting) {
-          await this.appointmentService.createGroup(userId, request);
-        } else {
-          await this.appointmentService.createPersonal(userId, request);
-        }
-        return res.json({ status: 'SUCCESS', message: 'Thêm cuộc hẹn thành công.' });
+        await this.appointmentService.createPersonal(userId, request);
       }
-    } catch (err) { next(err); }
+
+      return res.json({
+        status: 'SUCCESS',
+        message: 'Thêm appointment thành công.',
+      });
+    } catch (err) {
+      next(err);
+    }
   }
 
   async approveJoinRequest(req: Request, res: Response, next: any) {
@@ -93,7 +147,9 @@ export class AppointmentController {
       const { ownerId, meetingId, userId } = req.body;
       await this.groupMeetingService.approveUser(ownerId, meetingId, userId);
       res.sendStatus(200);
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
   async rejectJoinRequest(req: Request, res: Response, next: any) {
@@ -101,13 +157,17 @@ export class AppointmentController {
       const { ownerId, meetingId, userId } = req.body;
       await this.groupMeetingService.rejectUser(ownerId, meetingId, userId);
       res.sendStatus(200);
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 
   async listUsers(_req: Request, res: Response, next: any) {
     try {
       const users = await this.userService.getAllUsers();
       res.json(users);
-    } catch (err) { next(err); }
+    } catch (err) {
+      next(err);
+    }
   }
 }

@@ -4,80 +4,143 @@ import { DbConnection } from './DbConnection';
 
 export class AppointmentRepository {
   async getByUserId(userId: number): Promise<Appointment[]> {
-    const pool = await DbConnection.getConnection();
-    const result = await pool.query(`
-      SELECT a.*, r.reminder_id, r.remind_at, r.method 
+    const db = await DbConnection.getConnection();
+
+    const rows = await db.all(
+      `
+      SELECT a.*, r.reminder_id, r.reminder_time, r.reminder_type
       FROM appointments a
       LEFT JOIN reminders r ON a.appointment_id = r.appointment_id
-      WHERE a.owner_id = $1
-    `, [userId]);
+      WHERE a.owner_id = ?
+         OR a.appointment_id IN (
+           SELECT appointment_id
+           FROM participants
+           WHERE user_id = ?
+         )
+      ORDER BY a.start_time ASC
+      `,
+      [userId, userId]
+    );
 
-    return this.mapRowsToAppointments(result.rows);
+    return this.mapRowsToAppointments(rows);
   }
 
   async getById(appointmentId: number): Promise<Appointment | null> {
-    const pool = await DbConnection.getConnection();
-    const result = await pool.query('SELECT * FROM appointments WHERE appointment_id = $1', [appointmentId]);
+    const db = await DbConnection.getConnection();
 
-    if (result.rows.length === 0) return null;
-    return this.mapRowsToAppointments(result.rows)[0];
+    const rows = await db.all(
+      `
+      SELECT a.*, r.reminder_id, r.reminder_time, r.reminder_type
+      FROM appointments a
+      LEFT JOIN reminders r ON a.appointment_id = r.appointment_id
+      WHERE a.appointment_id = ?
+      `,
+      [appointmentId]
+    );
+
+    if (rows.length === 0) return null;
+
+    return this.mapRowsToAppointments(rows)[0];
   }
 
   async save(appointment: Appointment): Promise<number> {
-    const client = await (await DbConnection.getConnection()).connect();
+    const db = await DbConnection.getConnection();
+
     try {
-      await client.query('BEGIN');
-      
-      const res = await client.query(`
-        INSERT INTO appointments (title, location, start_time, end_time, owner_id, is_group_meeting)
-        VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING appointment_id
-      `, [
-        appointment.title,
-        appointment.location,
-        appointment.startTime,
-        appointment.endTime,
-        appointment.ownerId,
-        appointment.isGroupMeeting
-      ]);
+      await db.run('BEGIN');
 
-      const id = res.rows[0].appointment_id;
+      const result = await db.run(
+        `
+        INSERT INTO appointments (
+          title,
+          location,
+          start_time,
+          end_time,
+          owner_id,
+          is_group_meeting
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [
+          appointment.title,
+          appointment.location,
+          appointment.startTime.toISOString(),
+          appointment.endTime.toISOString(),
+          appointment.ownerId,
+          appointment.isGroupMeeting ? 1 : 0,
+        ]
+      );
 
-      if (appointment.reminders.length > 0) {
-        for (const reminder of appointment.reminders) {
-          await client.query(
-            'INSERT INTO reminders (appointment_id, remind_at, method) VALUES ($1, $2, $3)',
-            [id, reminder.remindAt, reminder.method]
-          );
-        }
+      const id = result.lastID;
+
+      for (const reminder of appointment.reminders) {
+        await db.run(
+          `
+          INSERT INTO reminders (
+            appointment_id,
+            reminder_time,
+            reminder_type
+          )
+          VALUES (?, ?, ?)
+          `,
+          [id, reminder.remindAt.toISOString(), reminder.method]
+        );
       }
 
-      await client.query('COMMIT');
+      await db.run('COMMIT');
+
       return id;
     } catch (err) {
-      await client.query('ROLLBACK');
+      await db.run('ROLLBACK');
       throw err;
-    } finally {
-      client.release();
     }
   }
 
   async delete(id: number): Promise<void> {
-    const pool = await DbConnection.getConnection();
-    await pool.query('DELETE FROM appointments WHERE appointment_id = $1', [id]);
+    const db = await DbConnection.getConnection();
+
+    try {
+      await db.run('BEGIN');
+
+      await db.run('DELETE FROM reminders WHERE appointment_id = ?', [id]);
+      await db.run('DELETE FROM pending_requests WHERE appointment_id = ?', [id]);
+      await db.run('DELETE FROM participants WHERE appointment_id = ?', [id]);
+      await db.run('DELETE FROM group_meetings WHERE appointment_id = ?', [id]);
+      await db.run('DELETE FROM appointments WHERE appointment_id = ?', [id]);
+
+      await db.run('COMMIT');
+    } catch (err) {
+      await db.run('ROLLBACK');
+      throw err;
+    }
   }
 
   async findConflicts(userId: number, start: Date, end: Date): Promise<Appointment | null> {
-    const pool = await DbConnection.getConnection();
-    const result = await pool.query(`
-      SELECT * FROM appointments 
-      WHERE owner_id = $1 
-      AND start_time < $2 AND end_time > $3
-      LIMIT 1
-    `, [userId, end, start]);
+    const db = await DbConnection.getConnection();
 
-    if (result.rows.length === 0) return null;
-    return this.mapRowsToAppointments(result.rows)[0];
+    const rows = await db.all(
+      `
+      SELECT a.*
+      FROM appointments a
+      WHERE (
+        a.owner_id = ?
+        OR a.appointment_id IN (
+          SELECT appointment_id
+          FROM participants
+          WHERE user_id = ?
+        )
+      )
+      AND a.start_time < ?
+      AND a.end_time > ?
+      ORDER BY a.start_time ASC
+      LIMIT 1
+      `,
+      [userId, userId, end.toISOString(), start.toISOString()]
+    );
+
+    if (rows.length === 0) return null;
+
+    return this.mapRowsToAppointments(rows)[0];
   }
 
   private mapRowsToAppointments(rows: any[]): Appointment[] {
@@ -85,21 +148,31 @@ export class AppointmentRepository {
 
     for (const row of rows) {
       if (!map.has(row.appointment_id)) {
-        map.set(row.appointment_id, new Appointment(
+        map.set(
           row.appointment_id,
-          row.title,
-          row.location,
-          new Date(row.start_time),
-          new Date(row.end_time),
-          row.owner_id,
-          row.is_group_meeting,
-          []
-        ));
+          new Appointment(
+            row.appointment_id,
+            row.title,
+            row.location,
+            new Date(row.start_time),
+            new Date(row.end_time),
+            row.owner_id,
+            Boolean(row.is_group_meeting),
+            []
+          )
+        );
       }
 
       if (row.reminder_id) {
         const app = map.get(row.appointment_id)!;
-        app.addReminder(new Reminder(row.reminder_id, new Date(row.remind_at), row.method));
+
+        app.addReminder(
+          new Reminder(
+            row.reminder_id,
+            new Date(row.reminder_time),
+            row.reminder_type
+          )
+        );
       }
     }
 
