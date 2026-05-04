@@ -1,8 +1,8 @@
 import React from 'react';
 import { X, MapPin, Clock, Users, Calendar } from 'lucide-react';
-import { Appointment } from '../../src/models/Appointment';
-import { GroupMeeting } from '../../src/models/GroupMeeting';
-import { formatTime } from '../../src/utils/dateUtils';
+import { Appointment } from '../models/Appointment';
+import { GroupMeeting } from '../models/GroupMeeting';
+import { formatTime } from '../utils/dateUtils';
 
 interface Props {
   appointment: Appointment;

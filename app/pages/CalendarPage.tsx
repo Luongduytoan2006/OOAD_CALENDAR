@@ -1,14 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Plus, UserCircle, BellRing } from 'lucide-react';
-import { Appointment } from '../../src/models/Appointment';
-import { GroupMeeting } from '../../src/models/GroupMeeting';
-import { AddAppointmentDecision, AddAppointmentRequest } from '../../src/models/types';
-import { buildMonthGrid } from '../../src/utils/appointmentUtils';
-import { formatMonthLabel, formatTime, isSameDay } from '../../src/utils/dateUtils';
+import { Appointment } from '../models/Appointment';
+import { GroupMeeting } from '../models/GroupMeeting';
+import { AddAppointmentDecision, AddAppointmentRequest } from '../models/types';
+import { buildMonthGrid } from '../utils/appointmentUtils';
+import { formatMonthLabel, formatTime, isSameDay } from '../utils/dateUtils';
 import { AddAppointmentFormModal } from '../components/AddAppointmentFormModal';
 import { PendingRequestsModal } from '../components/PendingRequestsModal';
 import { appointmentController } from '../container';
-import { User } from '../../src/models/User';
+import { User } from '../models/User';
 import { ViewAppointmentDetailsModal } from '../components/ViewAppointmentDetailsModal';
 
 export function CalendarPage(): React.JSX.Element {

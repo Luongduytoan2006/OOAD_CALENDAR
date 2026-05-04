@@ -8,8 +8,8 @@ import {
   BellRing,
   Users,
 } from 'lucide-react';
-import { AddAppointmentRequest } from '../../src/models/types';
-import { ReminderMethod } from '../../src/models/Reminder';
+import { AddAppointmentRequest } from '../models/types';
+import { ReminderMethod } from '../models/Reminder';
 
 interface AddAppointmentFormModalProps {
   defaultDate: Date;

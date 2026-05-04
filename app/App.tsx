@@ -12,7 +12,7 @@ export function App(): React.JSX.Element {
           </div>
           <div>
             <h1 className="text-lg font-black tracking-tight">OOAD Calendar Appointment</h1>
-            <p className="text-xs text-gray-500">MVC + N-Layers + PostgreSQL</p>
+            <p className="text-xs text-gray-500">MVC + N-Layers + ASP.NET Core C# + SQLite</p>
           </div>
         </div>
       </header>
