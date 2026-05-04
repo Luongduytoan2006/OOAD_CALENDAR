@@ -44,6 +44,11 @@ builder.Services.AddSingleton<GroupMeetingService>();
 
 var app = builder.Build();
 
+// --- Khởi tạo tự động Database ---
+var connString = app.Configuration.GetConnectionString("DefaultConnection") 
+                 ?? "Server=localhost;Port=3306;Database=calendar_db;Uid=root;Pwd=;";
+DatabaseInitializer.Initialize(connString);
+
 app.UseCors();
 
 app.UseDefaultFiles();   // serves index.html for "/"

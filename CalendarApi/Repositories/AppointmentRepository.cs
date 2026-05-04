@@ -1,6 +1,6 @@
 using CalendarApi.Data;
 using CalendarApi.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace CalendarApi.Repositories;
 
@@ -26,16 +26,16 @@ public class AppointmentRepository
             SELECT a.*, r.reminder_id, r.reminder_time, r.reminder_type
             FROM appointments a
             LEFT JOIN reminders r ON a.appointment_id = r.appointment_id
-            WHERE a.owner_id = $userId
+            WHERE a.owner_id = @userId
                OR a.appointment_id IN (
                  SELECT appointment_id
                  FROM participants
-                 WHERE user_id = $userId2
+                 WHERE user_id = @userId2
                )
             ORDER BY a.start_time ASC";
 
-        cmd.Parameters.AddWithValue("$userId", userId);
-        cmd.Parameters.AddWithValue("$userId2", userId);
+        cmd.Parameters.AddWithValue("@userId", userId);
+        cmd.Parameters.AddWithValue("@userId2", userId);
 
         var rows = ReadRows(cmd);
         return MapRowsToAppointments(rows);
@@ -50,9 +50,9 @@ public class AppointmentRepository
             SELECT a.*, r.reminder_id, r.reminder_time, r.reminder_type
             FROM appointments a
             LEFT JOIN reminders r ON a.appointment_id = r.appointment_id
-            WHERE a.appointment_id = $id";
+            WHERE a.appointment_id = @id";
 
-        cmd.Parameters.AddWithValue("$id", appointmentId);
+        cmd.Parameters.AddWithValue("@id", appointmentId);
 
         var rows = ReadRows(cmd);
         if (rows.Count == 0) return null;
@@ -70,20 +70,20 @@ public class AppointmentRepository
             cmd.Transaction = transaction;
             cmd.CommandText = @"
                 INSERT INTO appointments (title, location, start_time, end_time, owner_id, is_group_meeting)
-                VALUES ($title, $location, $startTime, $endTime, $ownerId, $isGroupMeeting)";
+                VALUES (@title, @location, @startTime, @endTime, @ownerId, @isGroupMeeting)";
 
-            cmd.Parameters.AddWithValue("$title", appointment.Title);
-            cmd.Parameters.AddWithValue("$location", appointment.Location ?? "");
-            cmd.Parameters.AddWithValue("$startTime", appointment.StartTime.ToUniversalTime().ToString("o"));
-            cmd.Parameters.AddWithValue("$endTime", appointment.EndTime.ToUniversalTime().ToString("o"));
-            cmd.Parameters.AddWithValue("$ownerId", appointment.OwnerId);
-            cmd.Parameters.AddWithValue("$isGroupMeeting", appointment.IsGroupMeeting ? 1 : 0);
+            cmd.Parameters.AddWithValue("@title", appointment.Title);
+            cmd.Parameters.AddWithValue("@location", appointment.Location ?? "");
+            cmd.Parameters.AddWithValue("@startTime", appointment.StartTime.ToUniversalTime());
+            cmd.Parameters.AddWithValue("@endTime", appointment.EndTime.ToUniversalTime());
+            cmd.Parameters.AddWithValue("@ownerId", appointment.OwnerId);
+            cmd.Parameters.AddWithValue("@isGroupMeeting", appointment.IsGroupMeeting ? 1 : 0);
             cmd.ExecuteNonQuery();
 
             // Get the last inserted ID
             using var idCmd = conn.CreateCommand();
             idCmd.Transaction = transaction;
-            idCmd.CommandText = "SELECT last_insert_rowid()";
+            idCmd.CommandText = "SELECT LAST_INSERT_ID()";
             var id = Convert.ToInt32(idCmd.ExecuteScalar());
 
             // Insert reminders
@@ -93,10 +93,10 @@ public class AppointmentRepository
                 reminderCmd.Transaction = transaction;
                 reminderCmd.CommandText = @"
                     INSERT INTO reminders (appointment_id, reminder_time, reminder_type)
-                    VALUES ($appointmentId, $reminderTime, $reminderType)";
-                reminderCmd.Parameters.AddWithValue("$appointmentId", id);
-                reminderCmd.Parameters.AddWithValue("$reminderTime", reminder.RemindAt.ToUniversalTime().ToString("o"));
-                reminderCmd.Parameters.AddWithValue("$reminderType", reminder.Method.ToString());
+                    VALUES (@appointmentId, @reminderTime, @reminderType)";
+                reminderCmd.Parameters.AddWithValue("@appointmentId", id);
+                reminderCmd.Parameters.AddWithValue("@reminderTime", reminder.RemindAt.ToUniversalTime());
+                reminderCmd.Parameters.AddWithValue("@reminderType", reminder.Method.ToString());
                 reminderCmd.ExecuteNonQuery();
             }
 
@@ -124,8 +124,8 @@ public class AppointmentRepository
             {
                 using var cmd = conn.CreateCommand();
                 cmd.Transaction = transaction;
-                cmd.CommandText = $"DELETE FROM {tables[i]} WHERE {columns[i]} = $id";
-                cmd.Parameters.AddWithValue("$id", id);
+                cmd.CommandText = @"DELETE FROM {tables[i]} WHERE {columns[i]} = @id";
+                cmd.Parameters.AddWithValue("@id", id);
                 cmd.ExecuteNonQuery();
             }
 
@@ -147,22 +147,22 @@ public class AppointmentRepository
             SELECT a.*
             FROM appointments a
             WHERE (
-              a.owner_id = $userId
+              a.owner_id = @userId
               OR a.appointment_id IN (
                 SELECT appointment_id
                 FROM participants
-                WHERE user_id = $userId2
+                WHERE user_id = @userId2
               )
             )
-            AND a.start_time < $end
-            AND a.end_time > $start
+            AND a.start_time < @end
+            AND a.end_time > @start
             ORDER BY a.start_time ASC
             LIMIT 1";
 
-        cmd.Parameters.AddWithValue("$userId", userId);
-        cmd.Parameters.AddWithValue("$userId2", userId);
-        cmd.Parameters.AddWithValue("$end", end.ToUniversalTime().ToString("o"));
-        cmd.Parameters.AddWithValue("$start", start.ToUniversalTime().ToString("o"));
+        cmd.Parameters.AddWithValue("@userId", userId);
+        cmd.Parameters.AddWithValue("@userId2", userId);
+        cmd.Parameters.AddWithValue("@end", end.ToUniversalTime());
+        cmd.Parameters.AddWithValue("@start", start.ToUniversalTime());
 
         var rows = ReadRows(cmd);
         if (rows.Count == 0) return null;
@@ -171,7 +171,7 @@ public class AppointmentRepository
 
     // ----- Helpers -----
 
-    private static List<Dictionary<string, object?>> ReadRows(SqliteCommand cmd)
+    private static List<Dictionary<string, object?>> ReadRows(MySqlCommand cmd)
     {
         var rows = new List<Dictionary<string, object?>>();
         using var reader = cmd.ExecuteReader();
@@ -225,7 +225,8 @@ public class AppointmentRepository
 
     private static DateTime ParseDate(object? value)
     {
-        if (value == null) return DateTime.MinValue;
+        if (value == null || value == DBNull.Value) return DateTime.MinValue;
+        if (value is DateTime dt) return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
         return DateTime.Parse(value.ToString()!, null, System.Globalization.DateTimeStyles.RoundtripKind);
     }
 

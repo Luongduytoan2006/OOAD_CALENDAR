@@ -16,7 +16,11 @@ export const appointmentController = {
     return appointments.map((app: any) => ({
       ...app,
       startTime: new Date(app.startTime),
-      endTime: new Date(app.endTime)
+      endTime: new Date(app.endTime),
+      reminders: app.reminders ? app.reminders.map((r: any) => ({
+        ...r,
+        remindAt: new Date(r.remindAt)
+      })) : []
     }));
   },
   getAppointmentDetails: async (id: number) => {

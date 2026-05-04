@@ -1,6 +1,6 @@
 using CalendarApi.Data;
 using CalendarApi.Models;
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace CalendarApi.Repositories;
 
@@ -41,8 +41,8 @@ public class UserRepository
         var conn = _db.GetConnection();
 
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT * FROM users WHERE user_id = $userId";
-        cmd.Parameters.AddWithValue("$userId", userId);
+        cmd.CommandText = "SELECT * FROM users WHERE user_id = @userId";
+        cmd.Parameters.AddWithValue("@userId", userId);
 
         using var reader = cmd.ExecuteReader();
         if (reader.Read())

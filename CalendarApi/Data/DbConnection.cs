@@ -1,23 +1,23 @@
-using Microsoft.Data.Sqlite;
+using MySqlConnector;
 
 namespace CalendarApi.Data;
 
 /// <summary>
-/// Provides a singleton SQLite connection, equivalent to the TypeScript DbConnection class.
+/// Provides a singleton MySQL connection.
 /// </summary>
 public class DbConnection
 {
-    private static SqliteConnection? _connection;
+    private static MySqlConnection? _connection;
     private static readonly object _lock = new();
     private readonly string _connectionString;
 
     public DbConnection(IConfiguration configuration)
     {
-        var dbPath = configuration["Database:Path"] ?? Path.Combine(Directory.GetCurrentDirectory(), "..", "calendar.db");
-        _connectionString = $"Data Source={dbPath}";
+        _connectionString = configuration.GetConnectionString("DefaultConnection") 
+            ?? "Server=localhost;Port=3306;Database=calendar_db;Uid=root;Pwd=;";
     }
 
-    public SqliteConnection GetConnection()
+    public MySqlConnection GetConnection()
     {
         if (_connection != null && _connection.State == System.Data.ConnectionState.Open)
             return _connection;
@@ -27,9 +27,9 @@ public class DbConnection
             if (_connection != null && _connection.State == System.Data.ConnectionState.Open)
                 return _connection;
 
-            _connection = new SqliteConnection(_connectionString);
+            _connection = new MySqlConnection(_connectionString);
             _connection.Open();
-            Console.WriteLine($"✅ Connected to SQLite database: {_connectionString}");
+            Console.WriteLine($"✅ Connected to MySQL database: {_connectionString}");
             return _connection;
         }
     }
