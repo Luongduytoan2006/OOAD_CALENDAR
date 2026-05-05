@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "c9kcSe0jia0=",
+  "success": true,
+  "projectFilePath": "C:\\Users\\sonph\\Desktop\\OOAD_CALENDAR\\CalendarApi\\CalendarApi.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\sonph\\.nuget\\packages\\mysqlconnector\\2.5.0\\mysqlconnector.2.5.0.nupkg.sha512"
+  ],
+  "logs": []
+}

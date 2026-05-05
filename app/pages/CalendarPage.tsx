@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Plus, UserCircle, BellRing } from 'lucide-react';
-import { Appointment } from '../../src/models/Appointment';
-import { GroupMeeting } from '../../src/models/GroupMeeting';
-import { AddAppointmentDecision, AddAppointmentRequest } from '../../src/models/types';
-import { buildMonthGrid } from '../../src/utils/appointmentUtils';
-import { formatMonthLabel, formatTime, isSameDay } from '../../src/utils/dateUtils';
+import { Appointment } from '../models/Appointment';
+import { GroupMeeting } from '../models/GroupMeeting';
+import { AddAppointmentDecision, AddAppointmentRequest } from '../models/types';
+import { buildMonthGrid } from '../utils/appointmentUtils';
+import { formatMonthLabel, formatTime, isSameDay } from '../utils/dateUtils';
 import { AddAppointmentFormModal } from '../components/AddAppointmentFormModal';
 import { PendingRequestsModal } from '../components/PendingRequestsModal';
 import { appointmentController } from '../container';
-import { User } from '../../src/models/User';
+import { User } from '../models/User';
 import { ViewAppointmentDetailsModal } from '../components/ViewAppointmentDetailsModal';
 
 export function CalendarPage(): React.JSX.Element {
@@ -55,6 +55,30 @@ export function CalendarPage(): React.JSX.Element {
   useEffect(() => {
     void loadAppointments();
   }, [currentUser]);
+
+  const notifiedReminders = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      appointments.forEach((app) => {
+        app.reminders?.forEach((reminder) => {
+          if (notifiedReminders.current.has(reminder.reminderId)) return;
+
+          // Check if reminder is due
+          const diffMs = reminder.remindAt.getTime() - now.getTime();
+          
+          // Notify if the reminder time is reached, or it passed less than 2 minutes ago
+          if (diffMs <= 0 && diffMs > -120000) {
+            alert(`THÔNG BÁO TỪ HỆ THỐNG:\n\nCuộc hẹn: "${app.title}" sắp diễn ra!\nPhương thức thông báo: ${reminder.method}\nThời gian hẹn: ${formatTime(app.startTime)}`);
+            notifiedReminders.current.add(reminder.reminderId);
+          }
+        });
+      });
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(intervalId);
+  }, [appointments]);
 
   const monthGrid = useMemo(
     () => buildMonthGrid(displayMonth, appointments),
