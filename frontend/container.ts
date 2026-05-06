@@ -35,14 +35,14 @@ export const appointmentController = {
     return apiClient.post('/appointments/check-group-meeting', { userId: currentUserId, title, startTime, endTime });
   },
 
-  // Calendar.createAppointment() + addAppointment()
-  createAppointment: async (title: string, location: string, startTime: Date, endTime: Date, reminderMethods: string[], isGroupMeeting: boolean) => {
-    return apiClient.post('/appointments/create', { userId: currentUserId, title, location, startTime, endTime, reminderMethods, isGroupMeeting });
+  // Calendar.createAppointment() + for-loop addReminder() + addAppointment()
+  createAppointment: async (title: string, location: string, startTime: Date, endTime: Date, reminders: { remindAt: Date; method: string }[], isGroupMeeting: boolean) => {
+    return apiClient.post('/appointments/create', { userId: currentUserId, title, location, startTime, endTime, reminders, isGroupMeeting });
   },
 
   // Calendar.replaceAppointment()
-  replaceAppointment: async (conflictId: number, title: string, location: string, startTime: Date, endTime: Date, reminderMethods: string[], isGroupMeeting: boolean) => {
-    return apiClient.post('/appointments/replace', { userId: currentUserId, conflictId, title, location, startTime, endTime, reminderMethods, isGroupMeeting });
+  replaceAppointment: async (conflictIds: number[], title: string, location: string, startTime: Date, endTime: Date, reminders: { remindAt: Date; method: string }[], isGroupMeeting: boolean) => {
+    return apiClient.post('/appointments/replace', { userId: currentUserId, conflictIds, title, location, startTime, endTime, reminders, isGroupMeeting });
   },
 
   // Calendar.joinGroupMeeting()

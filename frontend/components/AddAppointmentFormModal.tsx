@@ -7,13 +7,15 @@ import {
   AlignLeft,
   BellRing,
   Users,
+  Plus,
+  Trash2,
 } from 'lucide-react';
-import { ReminderMethod } from '../models/Reminder';
+import { ReminderInput } from '../models/AddAppointmentForm';
 
 interface AddAppointmentFormModalProps {
   defaultDate: Date;
   onClose: () => void;
-  onSubmit: (title: string, location: string, startTime: Date, endTime: Date, reminderMethods: ReminderMethod[], isGroupMeeting: boolean) => Promise<void>;
+  onSubmit: (title: string, location: string, startTime: Date, endTime: Date, reminders: ReminderInput[], isGroupMeeting: boolean) => Promise<void>;
 }
 
 export function AddAppointmentFormModal({
@@ -24,9 +26,8 @@ export function AddAppointmentFormModal({
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [isGroupMeeting, setIsGroupMeeting] = useState(false);
-  const [selectedReminders, setSelectedReminders] = useState<ReminderMethod[]>([
-    ReminderMethod.Popup,
-  ]);
+  const [enableReminder, setEnableReminder] = useState(false);
+  const [reminders, setReminders] = useState<ReminderInput[]>([]);
 
   const [startTime, setStartTime] = useState(() => {
     const d = new Date(defaultDate);
@@ -53,6 +54,20 @@ export function AddAppointmentFormModal({
     return `${year}-${month}-${day}`;
   });
 
+  const addReminder = (): void => {
+    setReminders([...reminders, { days: 0, hours: 1, minutes: 0 }]);
+  };
+
+  const removeReminder = (index: number): void => {
+    setReminders(reminders.filter((_, i) => i !== index));
+  };
+
+  const updateReminder = (index: number, field: keyof ReminderInput, value: number): void => {
+    const updated = [...reminders];
+    updated[index] = { ...updated[index], [field]: value };
+    setReminders(updated);
+  };
+
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
 
@@ -65,7 +80,7 @@ export function AddAppointmentFormModal({
     const end = new Date(date);
     end.setHours(endH, endM, 0, 0);
 
-    void onSubmit(title, location, start, end, selectedReminders, isGroupMeeting);
+    void onSubmit(title, location, start, end, enableReminder ? reminders : [], isGroupMeeting);
   };
 
   return (
@@ -187,36 +202,81 @@ export function AddAppointmentFormModal({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-green-900/60 font-bold text-[10px] uppercase tracking-widest px-1">
-              <BellRing size={14} />
-              Nhắc nhở
-            </div>
+          {/* Reminder section */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer rounded-2xl bg-amber-50 border border-amber-100 p-4">
+              <input
+                type="checkbox"
+                className="w-5 h-5 rounded-lg border-2 border-amber-200 text-amber-600 focus:ring-amber-500/10"
+                checked={enableReminder}
+                onChange={(e) => {
+                  setEnableReminder(e.target.checked);
+                  if (!e.target.checked) setReminders([]);
+                }}
+              />
+              <div className="flex items-center gap-2">
+                <BellRing size={18} className="text-amber-600" />
+                <span className="text-sm font-black text-amber-900">Bật nhắc nhở</span>
+              </div>
+            </label>
 
-            <div className="flex gap-4">
-              {[ReminderMethod.Popup, ReminderMethod.Email].map((method) => (
-                <label key={method} className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    className="w-5 h-5 rounded-lg border-2 border-gray-200 text-green-900 focus:ring-green-900/10 transition-all cursor-pointer"
-                    checked={selectedReminders.includes(method)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedReminders([...selectedReminders, method]);
-                      } else {
-                        setSelectedReminders(
-                          selectedReminders.filter((m) => m !== method),
-                        );
-                      }
-                    }}
-                  />
+            {enableReminder && (
+              <div className="space-y-3 rounded-2xl border border-amber-100 bg-amber-50/30 p-4">
+                {reminders.map((r, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-amber-800 whitespace-nowrap">#{index + 1}</span>
 
-                  <span className="text-sm font-bold text-gray-600 group-hover:text-green-900 transition-colors">
-                    {method === ReminderMethod.Popup ? 'Thông báo Popup' : 'Gửi Email'}
-                  </span>
-                </label>
-              ))}
-            </div>
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <input
+                        type="number"
+                        min={0}
+                        max={364}
+                        className="w-16 px-2 py-2 rounded-xl bg-white border border-amber-200 text-center text-sm font-bold text-gray-800 outline-none focus:border-amber-400"
+                        value={r.days}
+                        onChange={(e) => updateReminder(index, 'days', Math.max(0, Math.min(364, Number(e.target.value) || 0)))}
+                      />
+                      <span className="text-[10px] font-bold text-amber-700">ngày</span>
+
+                      <input
+                        type="number"
+                        min={0}
+                        max={23}
+                        className="w-14 px-2 py-2 rounded-xl bg-white border border-amber-200 text-center text-sm font-bold text-gray-800 outline-none focus:border-amber-400"
+                        value={r.hours}
+                        onChange={(e) => updateReminder(index, 'hours', Math.max(0, Math.min(23, Number(e.target.value) || 0)))}
+                      />
+                      <span className="text-[10px] font-bold text-amber-700">giờ</span>
+
+                      <input
+                        type="number"
+                        min={0}
+                        max={59}
+                        className="w-14 px-2 py-2 rounded-xl bg-white border border-amber-200 text-center text-sm font-bold text-gray-800 outline-none focus:border-amber-400"
+                        value={r.minutes}
+                        onChange={(e) => updateReminder(index, 'minutes', Math.max(0, Math.min(59, Number(e.target.value) || 0)))}
+                      />
+                      <span className="text-[10px] font-bold text-amber-700">phút trước</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeReminder(index)}
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addReminder}
+                  className="flex items-center gap-2 text-xs font-bold text-amber-700 hover:text-amber-900 transition-colors py-2"
+                >
+                  <Plus size={14} /> Thêm nhắc nhở
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="pt-4 flex gap-4">

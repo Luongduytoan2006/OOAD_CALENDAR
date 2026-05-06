@@ -8,9 +8,10 @@ public interface ICalendarRepository
     User? GetUserById(int userId);
     List<Appointment> GetUserAppointments(int userId);
     Appointment? GetAppointmentById(int appointmentId);
-    List<GroupMeeting> FindMatchingGroupMeetings(int currentUserId, string title, DateTime startTime, DateTime endTime);
+    List<GroupMeeting> GetOtherGroupMeetings(int currentUserId);
     void AddAppointment(Appointment appointment);
     void DeleteAppointment(int appointmentId);
     void AddParticipant(int meetingId, int userId);
+    void RemoveParticipant(int meetingId, int userId);
     void SaveChanges();
 }

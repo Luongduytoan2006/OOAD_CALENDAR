@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MapPin, Clock, Users, Calendar } from 'lucide-react';
+import { X, MapPin, Clock, Users, Calendar, BellRing } from 'lucide-react';
 import { Appointment } from '../models/Appointment';
 import { GroupMeeting } from '../models/GroupMeeting';
 import { formatTime } from '../utils/dateUtils';
@@ -61,6 +61,22 @@ export function ViewAppointmentDetailsModal({ appointment, onClose }: Props): Re
                 {appointment.location || 'Chưa xác định'}
               </div>
             </div>
+
+            {appointment.reminders && appointment.reminders.length > 0 && (
+              <div className="space-y-3 rounded-2xl bg-amber-50/50 p-4 border border-amber-100">
+                <label className="text-[10px] font-black uppercase tracking-widest text-amber-800 flex items-center gap-2">
+                  <BellRing size={12} /> Nhắc nhở
+                </label>
+                <div className="space-y-1.5">
+                  {appointment.reminders.map((r: any) => (
+                    <div key={r.reminderId} className="flex items-center gap-2 text-xs font-bold text-amber-900">
+                      <Clock size={12} className="text-amber-500" />
+                      Nhắc {r.method} khi sự kiện diễn ra
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {isGroup && group && (
               <div className="space-y-3 rounded-2xl bg-gray-50 p-4 border border-gray-100">

@@ -1,3 +1,5 @@
+using CalendarApi.DTOs;
+
 namespace CalendarApi.Models;
 
 public class GroupMeeting : Appointment
@@ -11,11 +13,11 @@ public class GroupMeeting : Appointment
     {
     }
 
-    public bool HasSameTitleAndDuration(string title, DateTime start, DateTime end)
+    public bool HasSameTitleAndDuration(string title, Duration duration)
     {
         return string.Equals(Title.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)
-            && StartTime == start
-            && EndTime == end;
+            && StartTime == duration.StartTime
+            && EndTime == duration.EndTime;
     }
 
     public void AddParticipant(User user)

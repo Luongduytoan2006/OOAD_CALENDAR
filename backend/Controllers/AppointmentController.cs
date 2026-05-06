@@ -41,25 +41,26 @@ public class AppointmentController : ControllerBase
     public IActionResult CheckConflict([FromBody] CheckConflictRequest body)
     {
         var calendar = new Calendar { Appointments = _repository.GetUserAppointments(body.UserId) };
-        var conflict = calendar.FindConflictingAppointment(body.StartTime, body.EndTime);
+        var conflicts = calendar.FindConflictingAppointment(body.StartTime, body.EndTime);
 
-        if (conflict == null)
+        if (conflicts.Count == 0)
             return Ok(new { hasConflict = false });
 
         return Ok(new
         {
             hasConflict = true,
-            conflict = new { conflict.AppointmentId, conflict.Title, conflict.StartTime, conflict.EndTime }
+            conflicts = conflicts.Select(c => new { c.AppointmentId, c.Title, c.StartTime, c.EndTime, c.IsGroupMeeting, c.OwnerId })
         });
     }
 
-    // Calendar.findMatchingGroupMeeting(title, startTime, endTime)
+    // Calendar.findMatchingGroupMeeting(title, duration)
     [HttpPost("appointments/check-group-meeting")]
     public IActionResult CheckGroupMeeting([FromBody] CheckGroupMeetingRequest body)
     {
-        var otherMeetings = _repository.FindMatchingGroupMeetings(body.UserId, body.Title, body.StartTime, body.EndTime);
-        var calendar = new Calendar();
-        var matches = calendar.FindMatchingGroupMeeting(body.Title, body.StartTime, body.EndTime, otherMeetings);
+        var otherMeetings = _repository.GetOtherGroupMeetings(body.UserId);
+        var calendar = new Calendar { Appointments = otherMeetings.Cast<Appointment>().ToList() };
+        var duration = new Duration { StartTime = body.StartTime, EndTime = body.EndTime };
+        var matches = calendar.FindMatchingGroupMeeting(body.Title, duration);
 
         if (matches.Count == 0)
             return Ok(new { hasMatch = false });
@@ -76,7 +77,7 @@ public class AppointmentController : ControllerBase
         });
     }
 
-    // Calendar.createAppointment() + Calendar.addAppointment()
+    // Calendar.createAppointment() + for-loop addReminder() + addAppointment()
     [HttpPost("appointments/create")]
     public IActionResult CreateAppointment([FromBody] CreateAppointmentRequest body)
     {
@@ -87,9 +88,12 @@ public class AppointmentController : ControllerBase
         Appointment appointment;
 
         if (body.IsGroupMeeting)
-            appointment = calendar.CreateGroupMeeting(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId, user, body.ReminderMethods);
+            appointment = calendar.CreateGroupMeeting(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId, user);
         else
-            appointment = calendar.CreateAppointment(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId, body.ReminderMethods);
+            appointment = calendar.CreateAppointment(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId);
+
+        foreach (var r in body.Reminders)
+            appointment.AddReminder(new Reminder(0, r.RemindAt, r.Method));
 
         _repository.AddAppointment(appointment);
         _repository.SaveChanges();
@@ -103,15 +107,27 @@ public class AppointmentController : ControllerBase
         var user = _repository.GetUserById(body.UserId);
         if (user == null) return BadRequest("User not found");
 
-        _repository.DeleteAppointment(body.ConflictId);
+        foreach (var conflictId in body.ConflictIds)
+        {
+            var existing = _repository.GetAppointmentById(conflictId);
+            if (existing == null) continue;
+
+            if (existing.IsGroupMeeting && existing.OwnerId != body.UserId)
+                _repository.RemoveParticipant(conflictId, body.UserId);
+            else
+                _repository.DeleteAppointment(conflictId);
+        }
 
         var calendar = new Calendar();
         Appointment appointment;
 
         if (body.IsGroupMeeting)
-            appointment = calendar.CreateGroupMeeting(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId, user, body.ReminderMethods);
+            appointment = calendar.CreateGroupMeeting(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId, user);
         else
-            appointment = calendar.CreateAppointment(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId, body.ReminderMethods);
+            appointment = calendar.CreateAppointment(body.Title, body.Location, body.StartTime, body.EndTime, body.UserId);
+
+        foreach (var r in body.Reminders)
+            appointment.AddReminder(new Reminder(0, r.RemindAt, r.Method));
 
         _repository.AddAppointment(appointment);
         _repository.SaveChanges();

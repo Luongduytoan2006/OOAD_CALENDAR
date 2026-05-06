@@ -57,16 +57,13 @@ public class CalendarRepository : ICalendarRepository
             .FirstOrDefault(a => a.AppointmentId == appointmentId);
     }
 
-    public List<GroupMeeting> FindMatchingGroupMeetings(int currentUserId, string title, DateTime startTime, DateTime endTime)
+    public List<GroupMeeting> GetOtherGroupMeetings(int currentUserId)
     {
         return _context.GroupMeetings
             .Include(g => g.Participants)
             .Include(g => g.Owner)
             .Where(g =>
                 g.OwnerId != currentUserId
-                && g.Title.Trim().ToLower() == title.Trim().ToLower()
-                && g.StartTime == startTime
-                && g.EndTime == endTime
                 && !g.Participants.Any(p => p.UserId == currentUserId))
             .OrderBy(g => g.StartTime)
             .ToList();
@@ -97,6 +94,20 @@ public class CalendarRepository : ICalendarRepository
         if (meeting != null && user != null)
         {
             meeting.AddParticipant(user);
+        }
+    }
+
+    public void RemoveParticipant(int meetingId, int userId)
+    {
+        var meeting = _context.GroupMeetings
+            .Include(g => g.Participants)
+            .FirstOrDefault(g => g.AppointmentId == meetingId);
+
+        if (meeting != null)
+        {
+            var user = meeting.Participants.FirstOrDefault(p => p.UserId == userId);
+            if (user != null)
+                meeting.Participants.Remove(user);
         }
     }
 

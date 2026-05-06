@@ -1,6 +1,16 @@
-using CalendarApi.Models;
-
 namespace CalendarApi.DTOs;
+
+public class Duration
+{
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+}
+
+public class ReminderData
+{
+    public DateTime RemindAt { get; set; }
+    public string Method { get; set; } = "";
+}
 
 // POST /api/appointments/check-conflict
 public class CheckConflictRequest
@@ -27,7 +37,7 @@ public class CreateAppointmentRequest
     public string Location { get; set; } = "";
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
-    public List<ReminderMethod> ReminderMethods { get; set; } = new();
+    public List<ReminderData> Reminders { get; set; } = new();
     public bool IsGroupMeeting { get; set; } = false;
 }
 
@@ -35,12 +45,12 @@ public class CreateAppointmentRequest
 public class ReplaceAppointmentRequest
 {
     public int UserId { get; set; }
-    public int ConflictId { get; set; }
+    public List<int> ConflictIds { get; set; } = new();
     public string Title { get; set; } = "";
     public string Location { get; set; } = "";
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
-    public List<ReminderMethod> ReminderMethods { get; set; } = new();
+    public List<ReminderData> Reminders { get; set; } = new();
     public bool IsGroupMeeting { get; set; } = false;
 }
 
