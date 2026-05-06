@@ -9,13 +9,14 @@ import { ConflictWarningModal } from '../components/ConflictWarningModal';
 import { GroupMeetingSuggestionModal } from '../components/GroupMeetingSuggestionModal';
 import { ViewAppointmentDetailsModal } from '../components/ViewAppointmentDetailsModal';
 import { NotificationBox, NotificationType } from '../components/NotificationBox';
-import { appointmentController } from '../container';
 import { User } from '../models/User';
-
+import { Calendar } from '../models/Calendar';
 export function CalendarPage(): React.JSX.Element {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [currentUser, setCurrentUser] = useState<User>(() => appointmentController.getCurrentUser());
-  const [allUsers] = useState<User[]>(() => appointmentController.getAllUsers());
+  const [allUsers] = useState<User[]>(() => User.getAllUsers());
+  const [currentUser, setCurrentUser] = useState<User>(allUsers[0]);
+  const [calendar, setCalendar] = useState<Calendar | null>(null);
+
   const [displayMonth, setDisplayMonth] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -36,8 +37,9 @@ export function CalendarPage(): React.JSX.Element {
   const today = new Date();
 
   const loadAppointments = async (): Promise<void> => {
-    const data = await appointmentController.listAppointments();
-    setAppointments(data);
+    const cal = await Calendar.loadForUser(currentUser);
+    setCalendar(cal);
+    setAppointments(cal.appointments);
   };
 
   useEffect(() => { void loadAppointments(); }, [currentUser]);
@@ -63,8 +65,8 @@ export function CalendarPage(): React.JSX.Element {
   const monthGrid = useMemo(() => buildMonthGrid(displayMonth, appointments), [appointments, displayMonth]);
 
   const handleSwitchUser = (userId: number): void => {
-    appointmentController.setCurrentUser(userId);
-    setCurrentUser(appointmentController.getCurrentUser());
+    const user = allUsers.find((u) => u.userId === userId);
+    if (user) setCurrentUser(user);
   };
 
   const openAddModalAt = (date: Date): void => {
@@ -77,8 +79,8 @@ export function CalendarPage(): React.JSX.Element {
   };
 
   const handleShowDetails = async (app: Appointment): Promise<void> => {
-    if (app.isGroupMeeting) {
-      const details = await appointmentController.getAppointmentDetails(app.appointmentId);
+    if (app.isGroupMeeting && calendar) {
+      const details = await calendar.getAppointmentDetails(app.appointmentId);
       setSelectedAppointment({ ...details, startTime: new Date(details.startTime), endTime: new Date(details.endTime) });
       return;
     }
@@ -103,6 +105,8 @@ export function CalendarPage(): React.JSX.Element {
 
   // Submit create appointment
   const handleFormSubmit = async (title: string, location: string, startTime: Date, endTime: Date, reminderOffsets: { days: number; hours: number; minutes: number }[], isGroupMeeting: boolean): Promise<void> => {
+    if (!calendar) return;
+
     const form = new AddAppointmentForm(startTime, title, location, startTime, endTime, reminderOffsets);
     const validation = form.validateInput();
     if (!validation.isValid) {
@@ -114,19 +118,19 @@ export function CalendarPage(): React.JSX.Element {
     const formData = { title, location, startTime, endTime, reminders, isGroupMeeting };
     setPendingFormData(formData);
 
-    const conflictResult = await appointmentController.checkConflict(startTime, endTime);
+    const conflictResult = await calendar.checkConflict(startTime, endTime);
     if (conflictResult.hasConflict) {
       setConflictData(conflictResult.conflicts);
       return;
     }
 
-    const groupResult = await appointmentController.checkGroupMeeting(title, startTime, endTime);
+    const groupResult = await calendar.checkGroupMeeting(title, startTime, endTime);
     if (groupResult.hasMatch) {
       setSuggestionMeetings(groupResult.meetings);
       return;
     }
 
-    await appointmentController.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting);
+    await calendar.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting);
     notify('success', 'Thêm lịch hẹn thành công!');
     setShowAddModal(false);
     setPendingFormData(null);
@@ -138,7 +142,7 @@ export function CalendarPage(): React.JSX.Element {
     if (!pendingFormData || !conflictData) return;
     const { title, location, startTime, endTime, reminders, isGroupMeeting } = pendingFormData;
     const conflictIds = conflictData.map((c: any) => c.appointmentId);
-    await appointmentController.replaceAppointment(conflictIds, title, location, startTime, endTime, reminders, isGroupMeeting);
+    await currentUser.chooseReplace(conflictIds, title, location, startTime, endTime, reminders, isGroupMeeting);
     notify('success', 'Đã thay thế lịch hẹn cũ!');
     setConflictData(null);
     setShowAddModal(false);
@@ -148,7 +152,7 @@ export function CalendarPage(): React.JSX.Element {
 
   // Join group meeting
   const handleJoinMeeting = async (meetingId: number): Promise<void> => {
-    await appointmentController.joinGroupMeeting(meetingId);
+    await currentUser.confirmJoinGroupMeeting(meetingId);
     notify('success', 'Đã tham gia cuộc họp nhóm!');
     setSuggestionMeetings([]);
     setShowAddModal(false);
@@ -158,9 +162,9 @@ export function CalendarPage(): React.JSX.Element {
 
   // Create appointment anyway
   const handleCreateAnyway = async (): Promise<void> => {
-    if (!pendingFormData) return;
+    if (!pendingFormData || !calendar) return;
     const { title, location, startTime, endTime, reminders, isGroupMeeting } = pendingFormData;
-    await appointmentController.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting);
+    await calendar.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting);
     notify('success', 'Thêm lịch hẹn thành công!');
     setSuggestionMeetings([]);
     setShowAddModal(false);

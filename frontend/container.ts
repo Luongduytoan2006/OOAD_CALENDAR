@@ -1,3 +1,4 @@
+/*
 import { apiClient } from './apiClient';
 
 let currentUserId = 1;
@@ -50,3 +51,4 @@ export const appointmentController = {
     return apiClient.post('/appointments/join', { userId: currentUserId, meetingId });
   }
 };
+*/
