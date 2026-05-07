@@ -28,7 +28,7 @@ export function CalendarPage(): React.JSX.Element {
 
   const [conflictData, setConflictData] = useState<any[] | null>(null);
   const [suggestionMeetings, setSuggestionMeetings] = useState<any[]>([]);
-  const [pendingFormData, setPendingFormData] = useState<any>(null);
+  const [pendingForm, setPendingForm] = useState<AddAppointmentForm | null>(null);
 
   // Notification box state
   const [notification, setNotification] = useState<{ type: NotificationType; message: string } | null>(null);
@@ -87,66 +87,40 @@ export function CalendarPage(): React.JSX.Element {
     setSelectedAppointment(app);
   };
 
-  // Convert (days/hours/minutes) → { remindAt, method }
-  const buildReminders = (startTime: Date, offsets: { days: number; hours: number; minutes: number }[]): { remindAt: Date; method: string }[] => {
-    return offsets.map((r) => {
-      const remindAt = new Date(startTime);
-      remindAt.setDate(remindAt.getDate() - r.days);
-      remindAt.setHours(remindAt.getHours() - r.hours);
-      remindAt.setMinutes(remindAt.getMinutes() - r.minutes);
-      const parts: string[] = [];
-      if (r.days > 0) parts.push(`${r.days} ngày`);
-      if (r.hours > 0) parts.push(`${r.hours} giờ`);
-      if (r.minutes > 0) parts.push(`${r.minutes} phút`);
-      const method = parts.length > 0 ? parts.join(' ') + ' trước' : 'khi bắt đầu';
-      return { remindAt, method };
-    });
-  };
-
   // Submit create appointment
   const handleFormSubmit = async (title: string, location: string, startTime: Date, endTime: Date, reminderOffsets: { days: number; hours: number; minutes: number }[], isGroupMeeting: boolean): Promise<void> => {
     if (!calendar) return;
 
     const form = new AddAppointmentForm(startTime, title, location, startTime, endTime, reminderOffsets);
-    const validation = form.validateInput();
-    if (!validation.isValid) {
-      notify('error', validation.error!);
-      return;
-    }
-
-    const reminders = buildReminders(startTime, reminderOffsets);
-    const formData = { title, location, startTime, endTime, reminders, isGroupMeeting };
-    setPendingFormData(formData);
-
-    const conflictResult = await calendar.checkConflict(startTime, endTime);
-    if (conflictResult.hasConflict) {
-      setConflictData(conflictResult.conflicts);
-      return;
-    }
-
-    const groupResult = await calendar.checkGroupMeeting(title, startTime, endTime);
-    if (groupResult.hasMatch) {
-      setSuggestionMeetings(groupResult.meetings);
-      return;
-    }
-
-    await calendar.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting);
-    notify('success', 'Thêm lịch hẹn thành công!');
-    setShowAddModal(false);
-    setPendingFormData(null);
-    await loadAppointments();
+    
+    await form.submit(calendar, isGroupMeeting, {
+      showInvalidInputError: (msg) => notify('error', msg),
+      showConflictWarning: (conflicts) => {
+        setPendingForm(form);
+        setConflictData(conflicts);
+      },
+      askJoinGroupMeeting: (meetings) => {
+        setPendingForm(form);
+        setSuggestionMeetings(meetings);
+      },
+      showSuccess: async (msg) => {
+        notify('success', msg);
+        setShowAddModal(false);
+        setPendingForm(null);
+        await loadAppointments();
+      }
+    });
   };
 
   // Replace appointment
   const handleReplace = async (): Promise<void> => {
-    if (!pendingFormData || !conflictData) return;
-    const { title, location, startTime, endTime, reminders, isGroupMeeting } = pendingFormData;
+    if (!pendingForm || !conflictData) return;
     const conflictIds = conflictData.map((c: any) => c.appointmentId);
-    await currentUser.chooseReplace(conflictIds, title, location, startTime, endTime, reminders, isGroupMeeting);
+    await pendingForm.executeReplace(currentUser, conflictIds);
     notify('success', 'Đã thay thế lịch hẹn cũ!');
     setConflictData(null);
     setShowAddModal(false);
-    setPendingFormData(null);
+    setPendingForm(null);
     await loadAppointments();
   };
 
@@ -156,19 +130,18 @@ export function CalendarPage(): React.JSX.Element {
     notify('success', 'Đã tham gia cuộc họp nhóm!');
     setSuggestionMeetings([]);
     setShowAddModal(false);
-    setPendingFormData(null);
+    setPendingForm(null);
     await loadAppointments();
   };
 
   // Create appointment anyway
   const handleCreateAnyway = async (): Promise<void> => {
-    if (!pendingFormData || !calendar) return;
-    const { title, location, startTime, endTime, reminders, isGroupMeeting } = pendingFormData;
-    await calendar.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting);
+    if (!pendingForm || !calendar) return;
+    await pendingForm.executeCreateAnyway(calendar);
     notify('success', 'Thêm lịch hẹn thành công!');
     setSuggestionMeetings([]);
     setShowAddModal(false);
-    setPendingFormData(null);
+    setPendingForm(null);
     await loadAppointments();
   };
 
@@ -259,9 +232,9 @@ export function CalendarPage(): React.JSX.Element {
         </div>
       </div>
 
-      {showAddModal && <AddAppointmentFormModal defaultDate={selectedSlot} onClose={() => { setShowAddModal(false); setPendingFormData(null); }} onSubmit={handleFormSubmit} />}
-      {conflictData && <ConflictWarningModal conflicts={conflictData} onReplace={handleReplace} onCancel={() => { setConflictData(null); setPendingFormData(null); }} />}
-      {suggestionMeetings.length > 0 && <GroupMeetingSuggestionModal meetings={suggestionMeetings} onJoin={handleJoinMeeting} onCreateAnyway={handleCreateAnyway} onClose={() => { setSuggestionMeetings([]); setPendingFormData(null); }} />}
+      {showAddModal && <AddAppointmentFormModal defaultDate={selectedSlot} onClose={() => { setShowAddModal(false); setPendingForm(null); }} onSubmit={handleFormSubmit} />}
+      {conflictData && <ConflictWarningModal conflicts={conflictData} onReplace={handleReplace} onCancel={() => { setConflictData(null); setPendingForm(null); }} />}
+      {suggestionMeetings.length > 0 && <GroupMeetingSuggestionModal meetings={suggestionMeetings} onJoin={handleJoinMeeting} onCreateAnyway={handleCreateAnyway} onClose={() => { setSuggestionMeetings([]); setPendingForm(null); }} />}
       {selectedAppointment && <ViewAppointmentDetailsModal appointment={selectedAppointment} onClose={() => setSelectedAppointment(null)} />}
       {notification && <NotificationBox type={notification.type} message={notification.message} onClose={() => setNotification(null)} />}
     </div>
