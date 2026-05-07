@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CalendarApi.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260505134335_InitialCreate")]
+    [Migration("20260506061228_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -69,92 +69,92 @@ namespace CalendarApi.Data.Migrations
                         new
                         {
                             AppointmentId = 1,
-                            EndTime = new DateTime(2026, 5, 6, 10, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 8, 10, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
                             Location = "Phòng A1",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 6, 9, 0, 0, 0, DateTimeKind.Unspecified),
+                            StartTime = new DateTime(2026, 5, 8, 9, 0, 0, 0, DateTimeKind.Unspecified),
                             Title = "Họp Sprint Planning"
                         },
                         new
                         {
                             AppointmentId = 2,
-                            EndTime = new DateTime(2026, 5, 6, 13, 0, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 8, 13, 0, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
                             Location = "Nhà hàng Hải Sản",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 6, 11, 30, 0, 0, DateTimeKind.Unspecified),
+                            StartTime = new DateTime(2026, 5, 8, 11, 30, 0, 0, DateTimeKind.Unspecified),
                             Title = "Ăn trưa với khách"
                         },
                         new
                         {
                             AppointmentId = 3,
-                            EndTime = new DateTime(2026, 5, 7, 15, 0, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 9, 15, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
-                            Location = "Online",
+                            Location = "Online - Google Meet",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 7, 14, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Review code"
+                            StartTime = new DateTime(2026, 5, 9, 14, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Review code PBL3"
                         },
                         new
                         {
                             AppointmentId = 4,
-                            EndTime = new DateTime(2026, 5, 7, 18, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 10, 18, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
                             Location = "Phòng gym tầng 2",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 7, 17, 0, 0, 0, DateTimeKind.Unspecified),
+                            StartTime = new DateTime(2026, 5, 10, 17, 0, 0, 0, DateTimeKind.Unspecified),
                             Title = "Tập gym"
                         },
                         new
                         {
                             AppointmentId = 5,
-                            EndTime = new DateTime(2026, 5, 8, 9, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 12, 10, 0, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
-                            Location = "Thư viện",
+                            Location = "Thư viện DUT",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 8, 8, 0, 0, 0, DateTimeKind.Unspecified),
+                            StartTime = new DateTime(2026, 5, 12, 8, 0, 0, 0, DateTimeKind.Unspecified),
                             Title = "Đọc tài liệu OOAD"
                         },
                         new
                         {
                             AppointmentId = 6,
-                            EndTime = new DateTime(2026, 5, 6, 20, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 8, 20, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
-                            Location = "Online",
+                            Location = "Online - Zoom",
                             OwnerId = 2,
-                            StartTime = new DateTime(2026, 5, 6, 19, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Học tiếng Anh"
+                            StartTime = new DateTime(2026, 5, 8, 19, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Học tiếng Anh IELTS"
                         },
                         new
                         {
                             AppointmentId = 7,
-                            EndTime = new DateTime(2026, 5, 8, 11, 0, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 10, 11, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
-                            Location = "Quán cà phê",
+                            Location = "Quán cà phê Highlands",
                             OwnerId = 2,
-                            StartTime = new DateTime(2026, 5, 8, 10, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Gặp mentor"
+                            StartTime = new DateTime(2026, 5, 10, 10, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Gặp mentor hướng dẫn"
                         },
                         new
                         {
                             AppointmentId = 8,
-                            EndTime = new DateTime(2026, 5, 7, 7, 0, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 9, 7, 0, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
-                            Location = "Công viên",
+                            Location = "Công viên 29/3",
                             OwnerId = 3,
-                            StartTime = new DateTime(2026, 5, 7, 6, 0, 0, 0, DateTimeKind.Unspecified),
+                            StartTime = new DateTime(2026, 5, 9, 6, 0, 0, 0, DateTimeKind.Unspecified),
                             Title = "Chạy bộ buổi sáng"
                         },
                         new
                         {
                             AppointmentId = 9,
-                            EndTime = new DateTime(2026, 5, 9, 18, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 11, 18, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = false,
                             Location = "Nhà",
                             OwnerId = 3,
-                            StartTime = new DateTime(2026, 5, 9, 17, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Nấu ăn"
+                            StartTime = new DateTime(2026, 5, 11, 17, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Nấu ăn cuối tuần"
                         });
                 });
 
@@ -188,22 +188,92 @@ namespace CalendarApi.Data.Migrations
                         {
                             ReminderId = 1,
                             AppointmentId = 1,
-                            Method = "POPUP",
-                            RemindAt = new DateTime(2026, 5, 6, 8, 45, 0, 0, DateTimeKind.Unspecified)
+                            Method = "1 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 8, 8, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
                             ReminderId = 2,
-                            AppointmentId = 3,
-                            Method = "EMAIL",
-                            RemindAt = new DateTime(2026, 5, 7, 13, 45, 0, 0, DateTimeKind.Unspecified)
+                            AppointmentId = 1,
+                            Method = "1 ngày trước",
+                            RemindAt = new DateTime(2026, 5, 7, 9, 0, 0, 0, DateTimeKind.Unspecified)
                         },
                         new
                         {
                             ReminderId = 3,
+                            AppointmentId = 3,
+                            Method = "30 phút trước",
+                            RemindAt = new DateTime(2026, 5, 9, 13, 30, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 4,
+                            AppointmentId = 3,
+                            Method = "2 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 9, 12, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 5,
+                            AppointmentId = 5,
+                            Method = "1 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 12, 7, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 6,
+                            AppointmentId = 6,
+                            Method = "1 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 8, 18, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 7,
+                            AppointmentId = 7,
+                            Method = "1 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 10, 9, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 8,
+                            AppointmentId = 7,
+                            Method = "1 ngày trước",
+                            RemindAt = new DateTime(2026, 5, 9, 10, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 9,
                             AppointmentId = 10,
-                            Method = "POPUP",
-                            RemindAt = new DateTime(2026, 5, 9, 8, 45, 0, 0, DateTimeKind.Unspecified)
+                            Method = "1 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 12, 13, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 10,
+                            AppointmentId = 10,
+                            Method = "1 ngày trước",
+                            RemindAt = new DateTime(2026, 5, 11, 14, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 11,
+                            AppointmentId = 11,
+                            Method = "1 giờ trước",
+                            RemindAt = new DateTime(2026, 5, 14, 8, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 12,
+                            AppointmentId = 11,
+                            Method = "1 ngày trước",
+                            RemindAt = new DateTime(2026, 5, 13, 9, 0, 0, 0, DateTimeKind.Unspecified)
+                        },
+                        new
+                        {
+                            ReminderId = 13,
+                            AppointmentId = 11,
+                            Method = "30 phút trước",
+                            RemindAt = new DateTime(2026, 5, 14, 8, 30, 0, 0, DateTimeKind.Unspecified)
                         });
                 });
 
@@ -289,42 +359,42 @@ namespace CalendarApi.Data.Migrations
                         new
                         {
                             AppointmentId = 10,
-                            EndTime = new DateTime(2026, 5, 9, 10, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 12, 16, 0, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = true,
-                            Location = "Phòng Lab",
+                            Location = "Phòng Lab C3-201",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 9, 9, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Họp nhóm đồ án"
+                            StartTime = new DateTime(2026, 5, 12, 14, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Họp nhóm đồ án PBL3"
                         },
                         new
                         {
                             AppointmentId = 11,
-                            EndTime = new DateTime(2026, 5, 10, 15, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 14, 10, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = true,
                             Location = "Phòng A2",
                             OwnerId = 1,
-                            StartTime = new DateTime(2026, 5, 10, 14, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Thảo luận báo cáo"
+                            StartTime = new DateTime(2026, 5, 14, 9, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Thảo luận báo cáo cuối kỳ"
                         },
                         new
                         {
                             AppointmentId = 12,
-                            EndTime = new DateTime(2026, 5, 9, 10, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 12, 16, 0, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = true,
-                            Location = "Phòng Lab",
+                            Location = "Phòng Lab C3-201",
                             OwnerId = 2,
-                            StartTime = new DateTime(2026, 5, 9, 9, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Họp nhóm đồ án"
+                            StartTime = new DateTime(2026, 5, 12, 14, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Họp nhóm đồ án PBL3"
                         },
                         new
                         {
                             AppointmentId = 13,
-                            EndTime = new DateTime(2026, 5, 10, 15, 30, 0, 0, DateTimeKind.Unspecified),
+                            EndTime = new DateTime(2026, 5, 14, 10, 30, 0, 0, DateTimeKind.Unspecified),
                             IsGroupMeeting = true,
-                            Location = "Online",
+                            Location = "Online - Discord",
                             OwnerId = 3,
-                            StartTime = new DateTime(2026, 5, 10, 14, 0, 0, 0, DateTimeKind.Unspecified),
-                            Title = "Thảo luận báo cáo"
+                            StartTime = new DateTime(2026, 5, 14, 9, 0, 0, 0, DateTimeKind.Unspecified),
+                            Title = "Thảo luận báo cáo cuối kỳ"
                         });
                 });
 

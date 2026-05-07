@@ -68,7 +68,7 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.ReminderId);
             entity.Property(e => e.RemindAt).IsRequired();
-            entity.Property(e => e.Method).HasConversion<string>().HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Method).HasMaxLength(50).IsRequired();
         });
 
         // Seed data từ DbSeeder (chạy qua migration)

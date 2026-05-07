@@ -109,19 +109,19 @@ namespace CalendarApi.Data.Migrations
                 columns: new[] { "AppointmentId", "EndTime", "IsGroupMeeting", "Location", "OwnerId", "StartTime", "Title" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2026, 5, 6, 10, 30, 0, 0, DateTimeKind.Unspecified), false, "Phòng A1", 1, new DateTime(2026, 5, 6, 9, 0, 0, 0, DateTimeKind.Unspecified), "Họp Sprint Planning" },
-                    { 2, new DateTime(2026, 5, 6, 13, 0, 0, 0, DateTimeKind.Unspecified), false, "Nhà hàng Hải Sản", 1, new DateTime(2026, 5, 6, 11, 30, 0, 0, DateTimeKind.Unspecified), "Ăn trưa với khách" },
-                    { 3, new DateTime(2026, 5, 7, 15, 0, 0, 0, DateTimeKind.Unspecified), false, "Online", 1, new DateTime(2026, 5, 7, 14, 0, 0, 0, DateTimeKind.Unspecified), "Review code" },
-                    { 4, new DateTime(2026, 5, 7, 18, 30, 0, 0, DateTimeKind.Unspecified), false, "Phòng gym tầng 2", 1, new DateTime(2026, 5, 7, 17, 0, 0, 0, DateTimeKind.Unspecified), "Tập gym" },
-                    { 5, new DateTime(2026, 5, 8, 9, 30, 0, 0, DateTimeKind.Unspecified), false, "Thư viện", 1, new DateTime(2026, 5, 8, 8, 0, 0, 0, DateTimeKind.Unspecified), "Đọc tài liệu OOAD" },
-                    { 6, new DateTime(2026, 5, 6, 20, 30, 0, 0, DateTimeKind.Unspecified), false, "Online", 2, new DateTime(2026, 5, 6, 19, 0, 0, 0, DateTimeKind.Unspecified), "Học tiếng Anh" },
-                    { 7, new DateTime(2026, 5, 8, 11, 0, 0, 0, DateTimeKind.Unspecified), false, "Quán cà phê", 2, new DateTime(2026, 5, 8, 10, 0, 0, 0, DateTimeKind.Unspecified), "Gặp mentor" },
-                    { 8, new DateTime(2026, 5, 7, 7, 0, 0, 0, DateTimeKind.Unspecified), false, "Công viên", 3, new DateTime(2026, 5, 7, 6, 0, 0, 0, DateTimeKind.Unspecified), "Chạy bộ buổi sáng" },
-                    { 9, new DateTime(2026, 5, 9, 18, 30, 0, 0, DateTimeKind.Unspecified), false, "Nhà", 3, new DateTime(2026, 5, 9, 17, 0, 0, 0, DateTimeKind.Unspecified), "Nấu ăn" },
-                    { 10, new DateTime(2026, 5, 9, 10, 30, 0, 0, DateTimeKind.Unspecified), true, "Phòng Lab", 1, new DateTime(2026, 5, 9, 9, 0, 0, 0, DateTimeKind.Unspecified), "Họp nhóm đồ án" },
-                    { 11, new DateTime(2026, 5, 10, 15, 30, 0, 0, DateTimeKind.Unspecified), true, "Phòng A2", 1, new DateTime(2026, 5, 10, 14, 0, 0, 0, DateTimeKind.Unspecified), "Thảo luận báo cáo" },
-                    { 12, new DateTime(2026, 5, 9, 10, 30, 0, 0, DateTimeKind.Unspecified), true, "Phòng Lab", 2, new DateTime(2026, 5, 9, 9, 0, 0, 0, DateTimeKind.Unspecified), "Họp nhóm đồ án" },
-                    { 13, new DateTime(2026, 5, 10, 15, 30, 0, 0, DateTimeKind.Unspecified), true, "Online", 3, new DateTime(2026, 5, 10, 14, 0, 0, 0, DateTimeKind.Unspecified), "Thảo luận báo cáo" }
+                    { 1, new DateTime(2026, 5, 8, 10, 30, 0, 0, DateTimeKind.Unspecified), false, "Phòng A1", 1, new DateTime(2026, 5, 8, 9, 0, 0, 0, DateTimeKind.Unspecified), "Họp Sprint Planning" },
+                    { 2, new DateTime(2026, 5, 8, 13, 0, 0, 0, DateTimeKind.Unspecified), false, "Nhà hàng Hải Sản", 1, new DateTime(2026, 5, 8, 11, 30, 0, 0, DateTimeKind.Unspecified), "Ăn trưa với khách" },
+                    { 3, new DateTime(2026, 5, 9, 15, 30, 0, 0, DateTimeKind.Unspecified), false, "Online - Google Meet", 1, new DateTime(2026, 5, 9, 14, 0, 0, 0, DateTimeKind.Unspecified), "Review code PBL3" },
+                    { 4, new DateTime(2026, 5, 10, 18, 30, 0, 0, DateTimeKind.Unspecified), false, "Phòng gym tầng 2", 1, new DateTime(2026, 5, 10, 17, 0, 0, 0, DateTimeKind.Unspecified), "Tập gym" },
+                    { 5, new DateTime(2026, 5, 12, 10, 0, 0, 0, DateTimeKind.Unspecified), false, "Thư viện DUT", 1, new DateTime(2026, 5, 12, 8, 0, 0, 0, DateTimeKind.Unspecified), "Đọc tài liệu OOAD" },
+                    { 6, new DateTime(2026, 5, 8, 20, 30, 0, 0, DateTimeKind.Unspecified), false, "Online - Zoom", 2, new DateTime(2026, 5, 8, 19, 0, 0, 0, DateTimeKind.Unspecified), "Học tiếng Anh IELTS" },
+                    { 7, new DateTime(2026, 5, 10, 11, 30, 0, 0, DateTimeKind.Unspecified), false, "Quán cà phê Highlands", 2, new DateTime(2026, 5, 10, 10, 0, 0, 0, DateTimeKind.Unspecified), "Gặp mentor hướng dẫn" },
+                    { 8, new DateTime(2026, 5, 9, 7, 0, 0, 0, DateTimeKind.Unspecified), false, "Công viên 29/3", 3, new DateTime(2026, 5, 9, 6, 0, 0, 0, DateTimeKind.Unspecified), "Chạy bộ buổi sáng" },
+                    { 9, new DateTime(2026, 5, 11, 18, 30, 0, 0, DateTimeKind.Unspecified), false, "Nhà", 3, new DateTime(2026, 5, 11, 17, 0, 0, 0, DateTimeKind.Unspecified), "Nấu ăn cuối tuần" },
+                    { 10, new DateTime(2026, 5, 12, 16, 0, 0, 0, DateTimeKind.Unspecified), true, "Phòng Lab C3-201", 1, new DateTime(2026, 5, 12, 14, 0, 0, 0, DateTimeKind.Unspecified), "Họp nhóm đồ án PBL3" },
+                    { 11, new DateTime(2026, 5, 14, 10, 30, 0, 0, DateTimeKind.Unspecified), true, "Phòng A2", 1, new DateTime(2026, 5, 14, 9, 0, 0, 0, DateTimeKind.Unspecified), "Thảo luận báo cáo cuối kỳ" },
+                    { 12, new DateTime(2026, 5, 12, 16, 0, 0, 0, DateTimeKind.Unspecified), true, "Phòng Lab C3-201", 2, new DateTime(2026, 5, 12, 14, 0, 0, 0, DateTimeKind.Unspecified), "Họp nhóm đồ án PBL3" },
+                    { 13, new DateTime(2026, 5, 14, 10, 30, 0, 0, DateTimeKind.Unspecified), true, "Online - Discord", 3, new DateTime(2026, 5, 14, 9, 0, 0, 0, DateTimeKind.Unspecified), "Thảo luận báo cáo cuối kỳ" }
                 });
 
             migrationBuilder.InsertData(
@@ -140,9 +140,19 @@ namespace CalendarApi.Data.Migrations
                 columns: new[] { "ReminderId", "AppointmentId", "Method", "RemindAt" },
                 values: new object[,]
                 {
-                    { 1, 1, "POPUP", new DateTime(2026, 5, 6, 8, 45, 0, 0, DateTimeKind.Unspecified) },
-                    { 2, 3, "EMAIL", new DateTime(2026, 5, 7, 13, 45, 0, 0, DateTimeKind.Unspecified) },
-                    { 3, 10, "POPUP", new DateTime(2026, 5, 9, 8, 45, 0, 0, DateTimeKind.Unspecified) }
+                    { 1, 1, "1 giờ trước", new DateTime(2026, 5, 8, 8, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 2, 1, "1 ngày trước", new DateTime(2026, 5, 7, 9, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 3, 3, "30 phút trước", new DateTime(2026, 5, 9, 13, 30, 0, 0, DateTimeKind.Unspecified) },
+                    { 4, 3, "2 giờ trước", new DateTime(2026, 5, 9, 12, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 5, 5, "1 giờ trước", new DateTime(2026, 5, 12, 7, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 6, 6, "1 giờ trước", new DateTime(2026, 5, 8, 18, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 7, 7, "1 giờ trước", new DateTime(2026, 5, 10, 9, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 8, 7, "1 ngày trước", new DateTime(2026, 5, 9, 10, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 9, 10, "1 giờ trước", new DateTime(2026, 5, 12, 13, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 10, 10, "1 ngày trước", new DateTime(2026, 5, 11, 14, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 11, 11, "1 giờ trước", new DateTime(2026, 5, 14, 8, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 12, 11, "1 ngày trước", new DateTime(2026, 5, 13, 9, 0, 0, 0, DateTimeKind.Unspecified) },
+                    { 13, 11, "30 phút trước", new DateTime(2026, 5, 14, 8, 30, 0, 0, DateTimeKind.Unspecified) }
                 });
 
             migrationBuilder.CreateIndex(

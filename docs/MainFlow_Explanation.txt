@@ -1,0 +1,150 @@
+Dựa trên tài liệu Sequence Diagram (SEQUENCE_DIAGRAM.md) và cấu trúc code thực tế trong dự án, dưới đây là chi tiết các luồng chính và vị trí các hàm được gọi trong Frontend (FE) và Backend (BE).
+
+==================================================
+BƯỚC 1: KHỞI TẠO VÀ NHẬP LIỆU
+==================================================
+1. Mở form nhập liệu:
+   - Ở file: `frontend/pages/CalendarPage.tsx`
+   - Khi User click vào lịch, hàm `openAddModalAt(date)` được gọi để mở modal `AddAppointmentFormModal` (file `frontend/components/AddAppointmentFormModal.tsx`).
+
+2. Nhập thông tin & Submit:
+   - User điền các thông tin (title, location, start/end time, reminders, isGroupMeeting).
+   - User ấn nút Lưu/Submit.
+   - Hàm xử lý chính bắt đầu chạy là: `handleFormSubmit(...)` nằm tại file `frontend/pages/CalendarPage.tsx`.
+
+==================================================
+BƯỚC 2: KIỂM TRA TÍNH HỢP LỆ (VALIDATION)
+==================================================
+1. Nơi xử lý: Frontend (không gọi xuống BE)
+   - Trong hàm `handleFormSubmit` (file `CalendarPage.tsx`), hệ thống tạo một đối tượng form:
+     `const form = new AddAppointmentForm(...)`
+   - Ngay sau đó gọi hàm `form.validateInput()`.
+
+2. Vị trí hàm `validateInput()`:
+   - File: `frontend/models/AddAppointmentForm.ts`
+   - Hàm này chịu trách nhiệm kiểm tra:
+     + Tiêu đề không được để trống.
+     + Thời gian kết thúc phải lớn hơn thời gian bắt đầu.
+     + Thời gian bắt đầu không được trong quá khứ.
+     + Mỗi reminder phải có ít nhất 1 giá trị (days/hours/minutes) lớn hơn 0.
+     + Thời gian nhắc của reminder không được đã qua.
+
+3. Xử lý kết quả:
+   - Nếu lỗi (Invalid): Hàm `handleFormSubmit` gọi `notify('error', ...)` để hiển thị pop-up báo lỗi và lập tức dừng luồng (return).
+   - Nếu đúng (Valid): FE gọi hàm `buildReminders(startTime, offsets)` (cùng file `CalendarPage.tsx`) để chuyển đổi các offset (days/hours/minutes) thành `{ remindAt, method }`, rồi chuẩn bị gửi dữ liệu xuống Backend (chuyển sang Bước 3).
+
+==================================================
+BƯỚC 3: XỬ LÝ NGHIỆP VỤ (CALL BACKEND API)
+==================================================
+Khi dữ liệu đã valid, FE bắt đầu gọi các API của BE thông qua `appointmentController` (file `frontend/container.ts`). Object này sử dụng `apiClient` (file `frontend/apiClient.ts`) để gửi HTTP request. Dưới đây là chi tiết các Request gửi xuống BE được xử lý ở đâu:
+
+--------------------------------------------------
+Luồng 3.1: Kiểm tra xung đột lịch (Conflict Check)
+--------------------------------------------------
+- FE gọi: `appointmentController.checkConflict(startTime, endTime)`
+  + Gửi kèm `userId` hiện tại trong body request.
+- BE tiếp nhận:
+  + File: `backend/Controllers/AppointmentController.cs`
+  + Hàm: `CheckConflict()` (nhận HTTP POST `/api/appointments/check-conflict`)
+  + DTO nhận: `CheckConflictRequest` (file `backend/DTOs/AppointmentDtos.cs`)
+- Logic xử lý tại BE:
+  + Controller lấy danh sách lịch của user từ DB bằng `_repository.GetUserAppointments(body.UserId)` (file `backend/Repositories/CalendarRepository.cs`).
+  + Tạo đối tượng `new Calendar { Appointments = ... }` rồi gọi hàm `calendar.FindConflictingAppointment(start, end)` (file `backend/Models/Calendar.cs`).
+  + Bên trong, `FindConflictingAppointment` gọi `Appointment.OverlapsWith(start, end)` (file `backend/Models/Appointment.cs`) để đối chiếu logic xem có trùng giờ không (StartTime < otherEnd && EndTime > otherStart).
+  + Controller trả kết quả về cho FE: `{ hasConflict, conflicts[] }`.
+
+--------------------------------------------------
+Luồng 3.2: Xử lý khi có xung đột (User chọn Replace)
+--------------------------------------------------
+- Nếu FE nhận được báo trùng, FE hiện cảnh báo qua `ConflictWarningModal` (file `frontend/components/ConflictWarningModal.tsx`). Nếu User đồng ý "Ghi đè", FE gọi `handleReplace()` -> gửi xuống API replace.
+- FE gọi: `appointmentController.replaceAppointment(conflictIds, title, location, startTime, endTime, reminders, isGroupMeeting)`
+  + Lưu ý: gửi **danh sách** `conflictIds` (nhiều xung đột có thể xảy ra cùng lúc).
+- BE tiếp nhận:
+  + File: `backend/Controllers/AppointmentController.cs`
+  + Hàm: `ReplaceAppointment()` (nhận HTTP POST `/api/appointments/replace`)
+  + DTO nhận: `ReplaceAppointmentRequest` (file `backend/DTOs/AppointmentDtos.cs`)
+- Logic xử lý tại BE:
+  + Controller lặp qua từng `conflictId` trong `body.ConflictIds`:
+    * Nếu lịch xung đột là GroupMeeting và user KHÔNG PHẢI owner -> gọi `_repository.RemoveParticipant(conflictId, body.UserId)` (chỉ rời khỏi nhóm, không xóa lịch).
+    * Ngược lại -> gọi `_repository.DeleteAppointment(conflictId)` để xóa lịch cũ.
+  + Controller tạo đối tượng Calendar, gọi `calendar.CreateAppointment(...)` hoặc `calendar.CreateGroupMeeting(...)` (file `backend/Models/Calendar.cs`) để tạo đối tượng lịch mới.
+  + Lặp qua `body.Reminders`, gọi `appointment.AddReminder(new Reminder(...))` (file `backend/Models/Appointment.cs`) để gán nhắc nhở.
+  + Controller gọi `_repository.AddAppointment(appointment)` để lưu lịch mới vào Database.
+  + Controller gọi `_repository.SaveChanges()` để lưu Database.
+
+--------------------------------------------------
+Luồng 3.3: Kiểm tra cuộc họp nhóm (Group Meeting Check)
+--------------------------------------------------
+- Nếu KHÔNG có xung đột, FE tiếp tục gửi API check xem có Group Meeting nào trùng tên và thời gian không.
+- FE gọi: `appointmentController.checkGroupMeeting(title, startTime, endTime)`
+- BE tiếp nhận:
+  + File: `backend/Controllers/AppointmentController.cs`
+  + Hàm: `CheckGroupMeeting()` (nhận HTTP POST `/api/appointments/check-group-meeting`)
+  + DTO nhận: `CheckGroupMeetingRequest` (file `backend/DTOs/AppointmentDtos.cs`)
+- Logic xử lý tại BE:
+  + Controller gọi `_repository.GetOtherGroupMeetings(body.UserId)` (file `backend/Repositories/CalendarRepository.cs`) để lấy các GroupMeeting của người KHÁC mà user chưa tham gia.
+  + Tạo đối tượng `Duration { StartTime, EndTime }` (file `backend/DTOs/AppointmentDtos.cs`).
+  + Gọi hàm `calendar.FindMatchingGroupMeeting(title, duration)` (file `backend/Models/Calendar.cs`).
+  + Bên trong, `FindMatchingGroupMeeting` gọi `GroupMeeting.HasSameTitleAndDuration(title, duration)` (file `backend/Models/GroupMeeting.cs`) để so sánh tên (case-insensitive) và thời gian bắt đầu/kết thúc.
+  + Controller trả kết quả về cho FE: `{ hasMatch, meetings[] }`.
+
+--------------------------------------------------
+Luồng 3.4: Tham gia cuộc họp nhóm (User chọn Join)
+--------------------------------------------------
+- Nếu FE nhận thông báo có Group Meeting, hiện `GroupMeetingSuggestionModal` (file `frontend/components/GroupMeetingSuggestionModal.tsx`) hỏi User có muốn tham gia không. Nếu User chọn Join, FE gọi `handleJoinMeeting(meetingId)`.
+- FE gọi: `appointmentController.joinGroupMeeting(meetingId)`
+- BE tiếp nhận:
+  + File: `backend/Controllers/AppointmentController.cs`
+  + Hàm: `JoinGroupMeeting()` (nhận HTTP POST `/api/appointments/join`)
+  + DTO nhận: `JoinMeetingRequest` (file `backend/DTOs/AppointmentDtos.cs`)
+- Logic xử lý tại BE:
+  + Controller gọi `_repository.AddParticipant(body.MeetingId, body.UserId)` (file `backend/Repositories/CalendarRepository.cs`).
+  + Bên trong Repository, hàm này tìm GroupMeeting, rồi gọi `meeting.AddParticipant(user)` (file `backend/Models/GroupMeeting.cs`) - hàm này tự kiểm tra trùng trước khi thêm.
+  + Controller gọi `_repository.SaveChanges()`.
+
+--------------------------------------------------
+Luồng 3.5: Tạo lịch cá nhân/nhóm mới bình thường
+--------------------------------------------------
+- Nếu KHÔNG CÓ Group Meeting, hoặc User từ chối tham gia, FE sẽ tiến hành tạo lịch mới hoàn toàn bằng cách gọi `handleCreateAnyway()` hoặc đoạn cuối của `handleFormSubmit()`.
+- FE gọi: `appointmentController.createAppointment(title, location, startTime, endTime, reminders, isGroupMeeting)`
+- BE tiếp nhận:
+  + File: `backend/Controllers/AppointmentController.cs`
+  + Hàm: `CreateAppointment()` (nhận HTTP POST `/api/appointments/create`)
+  + DTO nhận: `CreateAppointmentRequest` (file `backend/DTOs/AppointmentDtos.cs`)
+- Logic xử lý tại BE:
+  + Controller lấy User từ `_repository.GetUserById(body.UserId)`.
+  + Tạo đối tượng Calendar, phân nhánh:
+    * Nếu `body.IsGroupMeeting == true`: gọi `calendar.CreateGroupMeeting(title, location, start, end, ownerId, user)` (file `backend/Models/Calendar.cs`) -> tạo `GroupMeeting` và tự động thêm owner làm participant.
+    * Nếu `false`: gọi `calendar.CreateAppointment(title, location, start, end, ownerId)` -> tạo `Appointment` thường.
+  + Lặp qua `body.Reminders`, gọi `appointment.AddReminder(new Reminder(...))` (file `backend/Models/Appointment.cs`) để gán nhắc nhở.
+  + Controller gọi `_repository.AddAppointment(appointment)` (file `backend/Repositories/CalendarRepository.cs`) để Insert vào Database.
+  + Controller gọi `_repository.SaveChanges()` để lưu Database.
+  + Trả về Success cho FE hiển thị `notify("Thêm lịch hẹn thành công!")`.
+
+==================================================
+TỔNG KẾT VỊ TRÍ KIẾN TRÚC THEO CHUẨN OOAD
+==================================================
+1. Frontend Layer:
+   - `frontend/pages/CalendarPage.tsx`: Chịu trách nhiệm nhận Input, điều phối các sự kiện (handleFormSubmit, handleReplace, handleJoinMeeting, handleCreateAnyway), và hiển thị các Modal.
+   - `frontend/models/AddAppointmentForm.ts`: Đảm nhiệm Model ở phía FE, thực thi `validateInput()`.
+   - `frontend/container.ts`: Đóng vai trò FE Controller/Container, chứa `appointmentController` gọi các API xuống BE.
+   - `frontend/apiClient.ts`: HTTP client gửi request xuống BE.
+   - `frontend/components/`: Chứa các Modal UI (AddAppointmentFormModal, ConflictWarningModal, GroupMeetingSuggestionModal, ViewAppointmentDetailsModal, NotificationBox).
+
+2. Backend Controller (`backend/Controllers/AppointmentController.cs`):
+   - Đóng vai trò tiếp nhận HTTP Request, điều phối dữ liệu.
+   - Các action: CheckConflict, CheckGroupMeeting, CreateAppointment, ReplaceAppointment, JoinGroupMeeting.
+
+3. Backend DTOs (`backend/DTOs/AppointmentDtos.cs`):
+   - Chứa các class request: CheckConflictRequest, CheckGroupMeetingRequest, CreateAppointmentRequest, ReplaceAppointmentRequest, JoinMeetingRequest.
+   - Chứa Duration (dùng để so sánh thời gian) và ReminderData.
+
+4. Backend Models:
+   - `backend/Models/Calendar.cs`: Chứa logic nghiệp vụ cốt lõi theo Sequence (FindConflictingAppointment, FindMatchingGroupMeeting, CreateAppointment, CreateGroupMeeting).
+   - `backend/Models/Appointment.cs`: Entity chính, chứa logic `OverlapsWith()` và `AddReminder()`.
+   - `backend/Models/GroupMeeting.cs`: Kế thừa Appointment, chứa `HasSameTitleAndDuration()` và `AddParticipant()`.
+   - `backend/Models/Reminder.cs`: Entity nhắc nhở.
+   - `backend/Models/User.cs`: Entity người dùng.
+
+5. Backend Repository (`backend/Repositories/CalendarRepository.cs`, interface `ICalendarRepository.cs`):
+   - Chuyên trách xử lý truy vấn Database: GetUserAppointments, GetOtherGroupMeetings, AddAppointment, DeleteAppointment, AddParticipant, RemoveParticipant, SaveChanges.

@@ -10,12 +10,12 @@ interface ConflictInfo {
 }
 
 interface ConflictWarningModalProps {
-  conflict: ConflictInfo;
+  conflicts: ConflictInfo[];
   onReplace: () => void;
   onCancel: () => void;
 }
 
-export function ConflictWarningModal({ conflict, onReplace, onCancel }: ConflictWarningModalProps): React.JSX.Element {
+export function ConflictWarningModal({ conflicts, onReplace, onCancel }: ConflictWarningModalProps): React.JSX.Element {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-md overflow-hidden rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in duration-200">
@@ -33,19 +33,23 @@ export function ConflictWarningModal({ conflict, onReplace, onCancel }: Conflict
 
         <div className="p-8 space-y-4">
           <p className="text-sm text-gray-600">
-            Bạn đã có lịch hẹn trong khung giờ này:
+            Bạn đã có {conflicts.length} lịch hẹn trong khung giờ này:
           </p>
 
-          <div className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4 space-y-2">
-            <span className="font-black text-orange-900">{conflict.title}</span>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Clock size={12} />
-              {formatTime(new Date(conflict.startTime))} - {formatTime(new Date(conflict.endTime))}
-            </div>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {conflicts.map((conflict) => (
+              <div key={conflict.appointmentId} className="rounded-2xl border border-orange-100 bg-orange-50/50 p-4 space-y-2">
+                <span className="font-black text-orange-900">{conflict.title}</span>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Clock size={12} />
+                  {formatTime(new Date(conflict.startTime))} - {formatTime(new Date(conflict.endTime))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <p className="text-sm text-gray-500">
-            Bạn muốn thay thế lịch hẹn cũ hay chọn thời gian khác?
+            Bạn muốn thay thế {conflicts.length > 1 ? 'các lịch hẹn cũ' : 'lịch hẹn cũ'} hay chọn thời gian khác?
           </p>
 
           <div className="pt-2 flex gap-3">

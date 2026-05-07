@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronRight, Plus, UserCircle, BellRing } from 'lucide-react';
 import { Appointment } from '../models/Appointment';
 import { AddAppointmentForm } from '../models/AddAppointmentForm';
-import { ReminderMethod } from '../models/Reminder';
 import { buildMonthGrid } from '../utils/appointmentUtils';
 import { formatMonthLabel, formatTime, isSameDay } from '../utils/dateUtils';
 import { AddAppointmentFormModal } from '../components/AddAppointmentFormModal';
@@ -10,13 +9,14 @@ import { ConflictWarningModal } from '../components/ConflictWarningModal';
 import { GroupMeetingSuggestionModal } from '../components/GroupMeetingSuggestionModal';
 import { ViewAppointmentDetailsModal } from '../components/ViewAppointmentDetailsModal';
 import { NotificationBox, NotificationType } from '../components/NotificationBox';
-import { appointmentController } from '../container';
 import { User } from '../models/User';
-
+import { Calendar } from '../models/Calendar';
 export function CalendarPage(): React.JSX.Element {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [currentUser, setCurrentUser] = useState<User>(() => appointmentController.getCurrentUser());
-  const [allUsers] = useState<User[]>(() => appointmentController.getAllUsers());
+  const [allUsers] = useState<User[]>(() => User.getAllUsers());
+  const [currentUser, setCurrentUser] = useState<User>(allUsers[0]);
+  const [calendar, setCalendar] = useState<Calendar | null>(null);
+
   const [displayMonth, setDisplayMonth] = useState<Date>(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -26,9 +26,9 @@ export function CalendarPage(): React.JSX.Element {
   const [selectedSlot, setSelectedSlot] = useState<Date>(new Date());
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-  const [conflictData, setConflictData] = useState<any>(null);
+  const [conflictData, setConflictData] = useState<any[] | null>(null);
   const [suggestionMeetings, setSuggestionMeetings] = useState<any[]>([]);
-  const [pendingFormData, setPendingFormData] = useState<any>(null);
+  const [pendingForm, setPendingForm] = useState<AddAppointmentForm | null>(null);
 
   // Notification box state
   const [notification, setNotification] = useState<{ type: NotificationType; message: string } | null>(null);
@@ -37,8 +37,9 @@ export function CalendarPage(): React.JSX.Element {
   const today = new Date();
 
   const loadAppointments = async (): Promise<void> => {
-    const data = await appointmentController.listAppointments();
-    setAppointments(data);
+    const cal = await Calendar.loadForUser(currentUser);
+    setCalendar(cal);
+    setAppointments(cal.appointments);
   };
 
   useEffect(() => { void loadAppointments(); }, [currentUser]);
@@ -64,8 +65,8 @@ export function CalendarPage(): React.JSX.Element {
   const monthGrid = useMemo(() => buildMonthGrid(displayMonth, appointments), [appointments, displayMonth]);
 
   const handleSwitchUser = (userId: number): void => {
-    appointmentController.setCurrentUser(userId);
-    setCurrentUser(appointmentController.getCurrentUser());
+    const user = allUsers.find((u) => u.userId === userId);
+    if (user) setCurrentUser(user);
   };
 
   const openAddModalAt = (date: Date): void => {
@@ -78,74 +79,69 @@ export function CalendarPage(): React.JSX.Element {
   };
 
   const handleShowDetails = async (app: Appointment): Promise<void> => {
-    if (app.isGroupMeeting) {
-      const details = await appointmentController.getAppointmentDetails(app.appointmentId);
+    if (app.isGroupMeeting && calendar) {
+      const details = await calendar.getAppointmentDetails(app.appointmentId);
       setSelectedAppointment({ ...details, startTime: new Date(details.startTime), endTime: new Date(details.endTime) });
       return;
     }
     setSelectedAppointment(app);
   };
 
-  // === LUỒNG SEQUENCE DIAGRAM ===
+  // Submit create appointment
+  const handleFormSubmit = async (title: string, location: string, startTime: Date, endTime: Date, reminderOffsets: { days: number; hours: number; minutes: number }[], isGroupMeeting: boolean): Promise<void> => {
+    if (!calendar) return;
 
-  const handleFormSubmit = async (title: string, location: string, startTime: Date, endTime: Date, reminderMethods: ReminderMethod[], isGroupMeeting: boolean): Promise<void> => {
-    const form = new AddAppointmentForm(startTime, title, location, startTime, endTime, reminderMethods);
-    const validation = form.validateInput();
-    if (!validation.isValid) {
-      notify('error', validation.error!);
-      return;
-    }
-
-    const formData = { title, location, startTime, endTime, reminderMethods, isGroupMeeting };
-    setPendingFormData(formData);
-
-    const conflictResult = await appointmentController.checkConflict(startTime, endTime);
-    if (conflictResult.hasConflict) {
-      setConflictData(conflictResult.conflict);
-      return;
-    }
-
-    const groupResult = await appointmentController.checkGroupMeeting(title, startTime, endTime);
-    if (groupResult.hasMatch) {
-      setSuggestionMeetings(groupResult.meetings);
-      return;
-    }
-
-    await appointmentController.createAppointment(title, location, startTime, endTime, reminderMethods, isGroupMeeting);
-    notify('success', 'Thêm lịch hẹn thành công!');
-    setShowAddModal(false);
-    setPendingFormData(null);
-    await loadAppointments();
+    const form = new AddAppointmentForm(startTime, title, location, startTime, endTime, reminderOffsets);
+    
+    await form.submit(calendar, isGroupMeeting, {
+      showInvalidInputError: (msg) => notify('error', msg),
+      showConflictWarning: (conflicts) => {
+        setPendingForm(form);
+        setConflictData(conflicts);
+      },
+      askJoinGroupMeeting: (meetings) => {
+        setPendingForm(form);
+        setSuggestionMeetings(meetings);
+      },
+      showSuccess: async (msg) => {
+        notify('success', msg);
+        setShowAddModal(false);
+        setPendingForm(null);
+        await loadAppointments();
+      }
+    });
   };
 
+  // Replace appointment
   const handleReplace = async (): Promise<void> => {
-    if (!pendingFormData || !conflictData) return;
-    const { title, location, startTime, endTime, reminderMethods, isGroupMeeting } = pendingFormData;
-    await appointmentController.replaceAppointment(conflictData.appointmentId, title, location, startTime, endTime, reminderMethods, isGroupMeeting);
+    if (!pendingForm || !conflictData) return;
+    const conflictIds = conflictData.map((c: any) => c.appointmentId);
+    await pendingForm.executeReplace(currentUser, conflictIds);
     notify('success', 'Đã thay thế lịch hẹn cũ!');
     setConflictData(null);
     setShowAddModal(false);
-    setPendingFormData(null);
+    setPendingForm(null);
     await loadAppointments();
   };
 
+  // Join group meeting
   const handleJoinMeeting = async (meetingId: number): Promise<void> => {
-    await appointmentController.joinGroupMeeting(meetingId);
+    await currentUser.confirmJoinGroupMeeting(meetingId);
     notify('success', 'Đã tham gia cuộc họp nhóm!');
     setSuggestionMeetings([]);
     setShowAddModal(false);
-    setPendingFormData(null);
+    setPendingForm(null);
     await loadAppointments();
   };
 
+  // Create appointment anyway
   const handleCreateAnyway = async (): Promise<void> => {
-    if (!pendingFormData) return;
-    const { title, location, startTime, endTime, reminderMethods, isGroupMeeting } = pendingFormData;
-    await appointmentController.createAppointment(title, location, startTime, endTime, reminderMethods, isGroupMeeting);
+    if (!pendingForm || !calendar) return;
+    await pendingForm.executeCreateAnyway(calendar);
     notify('success', 'Thêm lịch hẹn thành công!');
     setSuggestionMeetings([]);
     setShowAddModal(false);
-    setPendingFormData(null);
+    setPendingForm(null);
     await loadAppointments();
   };
 
@@ -236,9 +232,9 @@ export function CalendarPage(): React.JSX.Element {
         </div>
       </div>
 
-      {showAddModal && <AddAppointmentFormModal defaultDate={selectedSlot} onClose={() => { setShowAddModal(false); setPendingFormData(null); }} onSubmit={handleFormSubmit} />}
-      {conflictData && <ConflictWarningModal conflict={conflictData} onReplace={handleReplace} onCancel={() => { setConflictData(null); setPendingFormData(null); }} />}
-      {suggestionMeetings.length > 0 && <GroupMeetingSuggestionModal meetings={suggestionMeetings} onJoin={handleJoinMeeting} onCreateAnyway={handleCreateAnyway} onClose={() => { setSuggestionMeetings([]); setPendingFormData(null); }} />}
+      {showAddModal && <AddAppointmentFormModal defaultDate={selectedSlot} onClose={() => { setShowAddModal(false); setPendingForm(null); }} onSubmit={handleFormSubmit} />}
+      {conflictData && <ConflictWarningModal conflicts={conflictData} onReplace={handleReplace} onCancel={() => { setConflictData(null); setPendingForm(null); }} />}
+      {suggestionMeetings.length > 0 && <GroupMeetingSuggestionModal meetings={suggestionMeetings} onJoin={handleJoinMeeting} onCreateAnyway={handleCreateAnyway} onClose={() => { setSuggestionMeetings([]); setPendingForm(null); }} />}
       {selectedAppointment && <ViewAppointmentDetailsModal appointment={selectedAppointment} onClose={() => setSelectedAppointment(null)} />}
       {notification && <NotificationBox type={notification.type} message={notification.message} onClose={() => setNotification(null)} />}
     </div>
